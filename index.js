@@ -16,3 +16,17 @@ ngapp.run(function(exampleService, settingsService) {
         }
     });
 });
+
+ngapp.run(function(contextMenuFactory) {
+    let menuItems = contextMenuFactory.treeViewItems;
+    menuItems.push({
+        id: 'Edit Recipe',
+        visible: () => { return true; },
+        build: (scope, items) => {
+            items.push({
+                label: 'Edit Recipe',
+                callback: () => console.log('Edit Recipe')
+            });
+        }
+    });
+});
