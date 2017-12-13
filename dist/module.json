@@ -1,9 +1,9 @@
 {
-  "id": "moduleBoilerplate",
-  "name": "Module Boilerplate",
-  "author": "Mator",
+  "id": "recipeModule",
+  "name": "Recipe Module",
+  "author": "Meem0",
   "version": "1.0",
-  "released": "9/20/2017",
-  "updated": "9/20/2017",
-  "description": "A boilerplate for zEdit modules."
+  "released": "12/13/2017",
+  "updated": "12/13/2017",
+  "description": "Recipe module."
 }

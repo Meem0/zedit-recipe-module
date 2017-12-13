@@ -1,0 +1,6 @@
+<div class="modal-container" unfocus-modal="closeModal()">
+    <div class="modal" ng-click="$broadcast('parentClick', $event)" ng-keydown="$broadcast('keyDown', $event)" autofocus>
+        <div class="close-modal" ng-click="closeModal()"></div>
+        <p>{{message}}</p>
+    </div>
+</div>

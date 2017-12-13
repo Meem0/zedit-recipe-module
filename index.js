@@ -1,6 +1,13 @@
 /* global ngapp, xelib, modulePath */
 //= require ./src/exampleService.js
 //= require ./src/exampleSettings.js
+//= require ./src/editRecipeModal.js
+
+const openEditRecipeModal = function(scope) {
+    scope.$emit('openModal', 'editRecipe', {
+        basePath: `${modulePath}/partials`
+    });
+};
 
 ngapp.run(function(exampleService, settingsService) {
     exampleService.helloWorld();
@@ -25,7 +32,7 @@ ngapp.run(function(contextMenuFactory) {
         build: (scope, items) => {
             items.push({
                 label: 'Edit Recipe',
-                callback: () => console.log('Edit Recipe')
+                callback: () => openEditRecipeModal(scope)
             });
         }
     });
