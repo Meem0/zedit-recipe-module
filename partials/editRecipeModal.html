@@ -18,6 +18,13 @@
             </section>
 
             <section>
+                <label>
+                    <span class="input-label">Crafting Station</span>
+                    <select ng-model="craftingStation" ng-options="key for (key, val) in craftingStations"></select>
+                </label>
+            </section>
+
+            <section>
                 <label class="flex">
                     <span class="input-label">Created Object</span>
                     <reference-select

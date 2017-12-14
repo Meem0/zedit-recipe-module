@@ -22,6 +22,17 @@ ngapp.controller('editRecipeModalController', function($scope) {
         ingredients: []
     };
 
+    $scope.craftingStations = {
+        'Armor Table': 'CraftingSmithingArmorTable',
+        'Cookpot': 'CraftingCookpot',
+        'Forge': 'CraftingSmithingForge',
+        'Sharpening Wheel': 'CraftingSmithingSharpeningWheel',
+        'Skyforge': 'CraftingSmithingSkyforge',
+        'Smelter': 'CraftingSmelter',
+        'Tanning Rack': 'CraftingTanningRack'
+    };
+    $scope.craftingStation = $scope.craftingStations['Forge'];
+
     $scope.createdObjectSignatures = ['ARMO', 'WEAP'];
     $scope.createdObjectSignature = $scope.createdObjectSignatures[0];
 
