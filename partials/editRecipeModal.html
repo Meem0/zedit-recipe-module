@@ -1,8 +1,63 @@
+<style>
+    .edit-recipe-modal .modal {
+        max-width: 700px;
+    }
+</style>
+
 <div class="modal-container" unfocus-modal="closeModal()">
-    <div class="modal" ng-click="$broadcast('parentClick', $event)" ng-keydown="$broadcast('keyDown', $event)" autofocus>
+    <div class="modal" ng-click="$broadcast('parentClick', $event)" ng-keydown="$broadcast('keyDown', $event)" tabindex="0" autofocus>
         <div class="close-modal" ng-click="closeModal()"></div>
-        <p>{{message}}</p>
-        <p>{{ref_value}}</p>
-        <reference-select model="ref_value" signature="ref_signature" signatures="ref_signatures" handle="ref_handle"></reference-select>
+        <form>
+            <h2>Edit Recipe</h2>
+
+            <section>
+                <label class="flex">
+                    <span class="input-label">Editor ID</span>
+                    <input type="text" ng-model="recipeModel.editorId"/>
+                </label>
+            </section>
+
+            <section>
+                <label class="flex">
+                    <span class="input-label">Created Object</span>
+                    <reference-select
+                        model="recipeModel.createdObject"
+                        signature="createdObjectSignature"
+                        signatures="createdObjectSignatures">
+                    </reference-select>
+                </label>
+                <label class="flex">
+                    <span class="input-label">Created Object Count</span>
+                    <number-input type="positiveInteger" model="recipeModel.createdObjectCount"></number-input>
+                </label>
+            </section>
+
+            <h3>Ingredients
+                <span class="actions">
+                    <button class="action-btn positive small" ng-click="addIngredient()">Add Ingredient</button>
+                </span>
+            </h3>
+            <section>
+                <div ng-repeat="ingredient in recipeModel.ingredients">
+                    <div class="remove-item" ng-click="removeIngredient(ingredient)"></div>
+                    <label class="flex">
+                        <span class="input-label">Item</span>
+                        <reference-select
+                            model="ingredient.item"
+                            signatures="ingredientSignatures">
+                        </reference-select>
+                    </label>
+                    <label class="flex">
+                        <span class="input-label">Count</span>
+                        <number-input type="positiveInteger" model="ingredient.count"></number-input>
+                    </label>
+                </div>
+            </section>
+
+            <div class="primary-actions">
+                <button class="action-btn" ng-click="closeModal()">OK</button>
+                <button class="action-btn" ng-click="closeModal()">Cancel</button>
+            </div>
+        </form>
     </div>
 </div>
