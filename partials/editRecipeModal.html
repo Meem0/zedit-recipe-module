@@ -2,5 +2,7 @@
     <div class="modal" ng-click="$broadcast('parentClick', $event)" ng-keydown="$broadcast('keyDown', $event)" autofocus>
         <div class="close-modal" ng-click="closeModal()"></div>
         <p>{{message}}</p>
+        <p>{{ref_value}}</p>
+        <reference-select model="ref_value" signature="ref_signature" signatures="ref_signatures" handle="ref_handle"></reference-select>
     </div>
 </div>

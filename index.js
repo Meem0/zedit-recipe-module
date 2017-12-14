@@ -27,7 +27,7 @@ ngapp.run(function(contextMenuFactory) {
                 let selectedNode = scope.selectedNodes[0];
                 if (!selectedNode.can_expand) {
                     let sig = xelib.Signature(selectedNode.handle);
-                    if (sig === 'WEAP' || sig === 'ARMO') {
+                    if (sig === 'WEAP' || sig === 'ARMO' || sig === 'COBJ') {
                         return true;
                     }
                 }
