@@ -30,7 +30,7 @@
                     <reference-select
                         model="recipeModel.createdObject"
                         signature="createdObjectSignature"
-                        signatures="createdObjectSignatures">
+                        signatures="itemSignatures">
                     </reference-select>
                 </label>
                 <label class="flex">
@@ -51,7 +51,8 @@
                         <span class="input-label">Item</span>
                         <reference-select
                             model="ingredient.item"
-                            signatures="ingredientSignatures">
+                            signature="ingredient.signature"
+                            signatures="itemSignatures">
                         </reference-select>
                     </label>
                     <label class="flex">

@@ -1,4 +1,7 @@
 /* global ngapp, xelib, modulePath */
+
+var itemSignatures = ['ALCH', 'AMMO', 'ARMO', 'BOOK', 'INGR', 'MISC', 'SCRL', 'SLGM', 'WEAP'];
+
 //= require ./src/exampleService.js
 //= require ./src/exampleSettings.js
 //= require ./src/editRecipeModal.js
@@ -27,7 +30,7 @@ ngapp.run(function(contextMenuFactory) {
                 let selectedNode = scope.selectedNodes[0];
                 if (!selectedNode.can_expand) {
                     let sig = xelib.Signature(selectedNode.handle);
-                    if (sig === 'WEAP' || sig === 'ARMO' || sig === 'COBJ') {
+                    if (sig === 'COBJ' || itemSignatures.includes(sig)) {
                         return true;
                     }
                 }

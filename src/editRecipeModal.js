@@ -1,3 +1,13 @@
+getSignatureFromLongName = function(longName) {
+    let formIdStr = longName.substring(
+        longName.lastIndexOf(':') + 1,
+        longName.lastIndexOf(']')
+    );
+    let formId = parseInt(formIdStr, 16);
+    let recordHandle = xelib.GetRecord(0, formId);
+    return xelib.Signature(recordHandle);
+}
+
 ngapp.controller('editRecipeModalController', function($scope) {
 
     $scope.addIngredient = function() {
@@ -33,23 +43,36 @@ ngapp.controller('editRecipeModalController', function($scope) {
     };
     $scope.craftingStation = $scope.craftingStations['Forge'];
 
-    $scope.createdObjectSignatures = ['ARMO', 'WEAP'];
-    $scope.createdObjectSignature = $scope.createdObjectSignatures[0];
-
-    $scope.ingredientSignatures = ['ARMO', 'WEAP', 'INGR', 'MISC'];
+    $scope.itemSignatures = itemSignatures;
 
     let handle = $scope.modalOptions.handle;
     if (xelib.Signature(handle) === 'COBJ') {
         $scope.recipeModel.editorId = xelib.EditorID(handle);
         $scope.recipeModel.createdObject = xelib.GetValue(xelib.GetElement(handle, 'CNAM - Created Object'));
-        $scope.recipeModel.createdObjectCount = xelib.GetUIntValue(xelib.GetElement(handle, 'NAM1 - Created Object Count'));
+        $scope.recipeModel.createdObjectCount =
+            xelib.GetUIntValue(
+                xelib.GetElement(handle, 'NAM1 - Created Object Count')
+            );
 
-        let itemsElement = xelib.GetElement(handle, 'Items');
-        $scope.recipeModel.ingredients = xelib.GetElements(itemsElement).map(itemHandle => {
+        let ingredientsHandle = xelib.GetElement(handle, 'Items');
+        $scope.recipeModel.ingredients = xelib.GetElements(ingredientsHandle).map(ingredientHandle => {
+            let itemReferenceHandle = xelib.GetElement(ingredientHandle, 'CNTO - Item\\Item');
+            let itemLongName = xelib.GetValue(itemReferenceHandle);
+
+            let itemSignature = getSignatureFromLongName(itemLongName);
+            // need to do this because drop-down options need object reference
+            let itemSignatureRef = $scope.itemSignatures.find(s => s === itemSignature);
+
             return {
-                item: xelib.GetValue(xelib.GetElement(itemHandle, 'CNTO - Item\\Item')),
-                count: xelib.GetUIntValue(xelib.GetElement(itemHandle, 'CNTO - Item\\Count'))
+                signature: itemSignatureRef,
+                item: itemLongName,
+                count: xelib.GetUIntValue(xelib.GetElement(ingredientHandle, 'CNTO - Item\\Count'))
             }
         });
     }
+    else {
+        $scope.recipeModel.createdObject = xelib.LongName(handle);
+    }
+
+    $scope.createdObjectSignature = getSignatureFromLongName($scope.recipeModel.createdObject);
 });
