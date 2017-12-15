@@ -1,3 +1,58 @@
+const smithingPerks = [
+    {
+        displayName: 'Advanced Armors',
+        formId: 832532,
+        longName: 'AdvancedArmors "Advanced Armors" [PERK:000CB414]'
+    },
+    {
+        displayName: 'Daedric Smithing',
+        formId: 832531,
+        longName: 'DaedricSmithing "Daedric Smithing" [PERK:000CB413]'
+    },
+    {
+        displayName: 'Dragon Armor',
+        formId: 336272,
+        longName: 'DragonArmor "Dragon Armor" [PERK:00052190]'
+    },
+    {
+        displayName: 'Dwarven Smithing',
+        formId: 832526,
+        longName: 'DwarvenSmithing "Dwarven Smithing" [PERK:000CB40E]'
+    },
+    {
+        displayName: 'Ebony Smithing',
+        formId: 832530,
+        longName: 'EbonySmithing "Ebony Smithing" [PERK:000CB412]'
+    },
+    {
+        displayName: 'Elven Smithing',
+        formId: 832527,
+        longName: 'ElvenSmithing "Elven Smithing" [PERK:000CB40F]'
+    },
+    {
+        displayName: 'Glass Smithing',
+        formId: 832529,
+        longName: 'GlassSmithing "Glass Smithing" [PERK:000CB411]'
+    },
+    {
+        displayName: 'Orcish Smithing',
+        formId: 832528,
+        longName: 'OrcishSmithing "Orcish Smithing" [PERK:000CB410]'
+    },
+    {
+        displayName: 'Steel Smithing',
+        formId: 832525,
+        longName: 'SteelSmithing "Steel Smithing" [PERK:000CB40D]'
+    }    
+];
+const arcanePerk = {
+    displayName: 'Arcane Blacksmith',
+    formId: 336270,
+    longName: 'ArcaneBlacksmith "Arcane Blacksmith" [PERK:0005218E]'
+};
+
+//= require ./recipeConditions.js
+
 getFormIdFromLongName = function(longName) {
     let formIdStr = longName.substring(
         longName.lastIndexOf(':') + 1,
@@ -14,28 +69,41 @@ getSignatureFromLongName = function(longName) {
 }
 
 ngapp.controller('editRecipeModalController', function($scope) {
-
     $scope.addIngredient = function() {
-        $scope.recipeModel.ingredients.push({item: '', count: 0});
+        $scope.ingredients.push({item: '', count: 0});
     }
 
     $scope.removeIngredient = function(ingredient) {
-        let index = $scope.recipeModel.ingredients.indexOf(ingredient);
+        let index = $scope.ingredients.indexOf(ingredient);
         if (index >= 0) {
-            $scope.recipeModel.ingredients.splice(index, 1);
+            $scope.ingredients.splice(index, 1);
         }
+    }
+
+    $scope.updateCraftType = function() {
+        $scope.isTemper =
+            $scope.craftingStation === $scope.craftingStations['Armor Table'] ||
+            $scope.craftingStation === $scope.craftingStations['Sharpening Wheel'];
+        
+        $scope.isForge = $scope.craftingStation === $scope.craftingStations['Forge'];
     }
 
     $scope.closeModal = function() {
         $scope.$emit('closeModal');
     };
 
-    $scope.recipeModel = {
-        editorId: '',
-        createdObject: '',
-        createdObjectCount: 1,
-        ingredients: []
-    };
+    $scope.editorId = '';
+    $scope.createdObject = '';
+    $scope.createdObjectCount = 1;
+    $scope.ingredients = [];
+    $scope.conditionBypassArcane = false;
+
+    $scope.conditionPerkOptions = ['None'].concat(smithingPerks.map(perk => perk.displayName));
+    $scope.conditionPerk = $scope.conditionPerkOptions[0];
+
+    let hasConditionEnchanted = false;
+    let hasConditionArcane = false;
+    let conditionPerk = '';
 
     $scope.craftingStations = {
         'Armor Table': 711544,
@@ -52,9 +120,9 @@ ngapp.controller('editRecipeModalController', function($scope) {
 
     let handle = $scope.modalOptions.handle;
     if (xelib.Signature(handle) === 'COBJ') {
-        $scope.recipeModel.editorId = xelib.EditorID(handle);
-        $scope.recipeModel.createdObject = xelib.GetValue(xelib.GetElement(handle, 'CNAM - Created Object'));
-        $scope.recipeModel.createdObjectCount =
+        $scope.editorId = xelib.EditorID(handle);
+        $scope.createdObject = xelib.GetValue(xelib.GetElement(handle, 'CNAM - Created Object'));
+        $scope.createdObjectCount =
             xelib.GetUIntValue(
                 xelib.GetElement(handle, 'NAM1 - Created Object Count')
             );
@@ -69,8 +137,27 @@ ngapp.controller('editRecipeModalController', function($scope) {
             )
         ];
 
+        let conditionsHandle = xelib.GetElement(handle, 'Conditions');
+        if (conditionsHandle != 0) {
+            let conditionHandles = xelib.GetElements(conditionsHandle);
+
+            for (var i = 0; i < conditionHandles.length; ++i) {
+                let ctdaHandle = xelib.GetElement(conditionHandles[i], 'CTDA');
+                
+                if (!hasConditionEnchanted && isConditionEnchanted(ctdaHandle)) {
+                    hasConditionEnchanted = true;
+                }
+                else if (!hasConditionArcane && isConditionArcane(ctdaHandle)) {
+                    hasConditionArcane = true;
+                }
+                else if (conditionPerk === '') {
+                    conditionPerk = getConditionPerk(ctdaHandle);
+                }
+            }
+        }
+
         let ingredientsHandle = xelib.GetElement(handle, 'Items');
-        $scope.recipeModel.ingredients = xelib.GetElements(ingredientsHandle).map(ingredientHandle => {
+        $scope.ingredients = xelib.GetElements(ingredientsHandle).map(ingredientHandle => {
             let itemReferenceHandle = xelib.GetElement(ingredientHandle, 'CNTO - Item\\Item');
             let itemLongName = xelib.GetValue(itemReferenceHandle);
 
@@ -86,8 +173,20 @@ ngapp.controller('editRecipeModalController', function($scope) {
         });
     }
     else {
-        $scope.recipeModel.createdObject = xelib.LongName(handle);
+        $scope.createdObject = xelib.LongName(handle);
     }
 
-    $scope.createdObjectSignature = getSignatureFromLongName($scope.recipeModel.createdObject);
+    $scope.createdObjectSignature = getSignatureFromLongName($scope.createdObject);
+    $scope.updateCraftType();
+
+    if ($scope.isTemper && (!hasConditionEnchanted || !hasConditionArcane)) {
+        $scope.conditionBypassArcane = true;
+    }
+    if (conditionPerk != '') {
+        $scope.conditionPerk = $scope.conditionPerkOptions.find(displayName =>
+            smithingPerks.find(
+                perk => perk.longName === conditionPerk
+            ).displayName === displayName
+        );
+    }
 });

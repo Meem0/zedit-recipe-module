@@ -5,7 +5,12 @@
 </style>
 
 <div class="modal-container" unfocus-modal="closeModal()">
-    <div class="modal" ng-click="$broadcast('parentClick', $event)" ng-keydown="$broadcast('keyDown', $event)" tabindex="0" autofocus>
+    <div
+        class="modal"
+        ng-click="$broadcast('parentClick', $event)"
+        ng-keydown="$broadcast('keyDown', $event)"
+        tabindex="0"
+        autofocus>
         <div class="close-modal" ng-click="closeModal()"></div>
         <form>
             <h2>Edit Recipe</h2>
@@ -13,14 +18,18 @@
             <section>
                 <label class="flex">
                     <span class="input-label">Editor ID</span>
-                    <input type="text" ng-model="recipeModel.editorId"/>
+                    <input type="text" ng-model="editorId"/>
                 </label>
             </section>
 
             <section>
-                <label>
+                <label class="flex">
                     <span class="input-label">Crafting Station</span>
-                    <select ng-model="craftingStation" ng-options="key for (key, val) in craftingStations"></select>
+                    <select
+                        ng-model="craftingStation"
+                        ng-options="key for (key, val) in craftingStations"
+                        ng-change="updateCraftType()">
+                    </select>
                 </label>
             </section>
 
@@ -28,14 +37,28 @@
                 <label class="flex">
                     <span class="input-label">Created Object</span>
                     <reference-select
-                        model="recipeModel.createdObject"
+                        model="createdObject"
                         signature="createdObjectSignature"
                         signatures="itemSignatures">
                     </reference-select>
                 </label>
                 <label class="flex">
                     <span class="input-label">Created Object Count</span>
-                    <number-input type="positiveInteger" model="recipeModel.createdObjectCount"></number-input>
+                    <number-input type="positiveInteger" model="createdObjectCount"></number-input>
+                </label>
+            </section>
+
+            <section>
+                <label class="flex" ng-show="isTemper">
+                    <span class="input-label">Bypass Arcane Blacksmith</span>
+                    <input type="checkbox" ng-model="conditionBypassArcane" />
+                </label>
+                <label class="flex" ng-show="isForge">
+                    <span class="input-label">Required Perk</span>
+                    <select
+                        ng-model="conditionPerk"
+                        ng-options="key for key in conditionPerkOptions">
+                    </select>
                 </label>
             </section>
 
@@ -45,7 +68,7 @@
                 </span>
             </h3>
             <section>
-                <div ng-repeat="ingredient in recipeModel.ingredients">
+                <div ng-repeat="ingredient in ingredients">
                     <div class="remove-item" ng-click="removeIngredient(ingredient)"></div>
                     <label class="flex">
                         <span class="input-label">Item</span>
