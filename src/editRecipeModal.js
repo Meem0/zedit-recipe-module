@@ -81,10 +81,6 @@ ngapp.controller('editRecipeModalController', function($scope) {
     }
 
     $scope.updateCraftType = function() {
-        $scope.isTemper =
-            $scope.craftingStation === $scope.craftingStations['Armor Table'] ||
-            $scope.craftingStation === $scope.craftingStations['Sharpening Wheel'];
-        
         $scope.isForge = $scope.craftingStation === $scope.craftingStations['Forge'];
     }
 
@@ -96,14 +92,9 @@ ngapp.controller('editRecipeModalController', function($scope) {
     $scope.createdObject = '';
     $scope.createdObjectCount = 1;
     $scope.ingredients = [];
-    $scope.conditionBypassArcane = false;
 
     $scope.conditionPerkOptions = ['None'].concat(smithingPerks.map(perk => perk.displayName));
     $scope.conditionPerk = $scope.conditionPerkOptions[0];
-
-    let hasConditionEnchanted = false;
-    let hasConditionArcane = false;
-    let conditionPerk = '';
 
     $scope.craftingStations = {
         'Armor Table': 711544,
@@ -144,14 +135,14 @@ ngapp.controller('editRecipeModalController', function($scope) {
             for (var i = 0; i < conditionHandles.length; ++i) {
                 let ctdaHandle = xelib.GetElement(conditionHandles[i], 'CTDA');
                 
-                if (!hasConditionEnchanted && isConditionEnchanted(ctdaHandle)) {
-                    hasConditionEnchanted = true;
-                }
-                else if (!hasConditionArcane && isConditionArcane(ctdaHandle)) {
-                    hasConditionArcane = true;
-                }
-                else if (conditionPerk === '') {
-                    conditionPerk = getConditionPerk(ctdaHandle);
+                let conditionPerk = getConditionPerk(ctdaHandle);
+                if (conditionPerk !== '') {
+                    $scope.conditionPerk = $scope.conditionPerkOptions.find(displayName =>
+                        smithingPerks.find(
+                            perk => perk.longName === conditionPerk
+                        ).displayName === displayName
+                    );
+                    break;
                 }
             }
         }
@@ -178,15 +169,4 @@ ngapp.controller('editRecipeModalController', function($scope) {
 
     $scope.createdObjectSignature = getSignatureFromLongName($scope.createdObject);
     $scope.updateCraftType();
-
-    if ($scope.isTemper && (!hasConditionEnchanted || !hasConditionArcane)) {
-        $scope.conditionBypassArcane = true;
-    }
-    if (conditionPerk != '') {
-        $scope.conditionPerk = $scope.conditionPerkOptions.find(displayName =>
-            smithingPerks.find(
-                perk => perk.longName === conditionPerk
-            ).displayName === displayName
-        );
-    }
 });
