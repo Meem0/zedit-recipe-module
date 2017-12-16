@@ -27,7 +27,7 @@
                     <span class="input-label">Crafting Station</span>
                     <select
                         ng-model="craftingStation"
-                        ng-options="key for (key, val) in craftingStations"
+                        ng-options="cs for cs in craftingStations"
                         ng-change="updateCraftType()">
                     </select>
                 </label>

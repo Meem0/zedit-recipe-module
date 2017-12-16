@@ -1,4 +1,9 @@
-ngapp.controller('editRecipeModalController', function($scope, recipePerkService, itemSignatureService) {
+ngapp.controller('editRecipeModalController', function(
+    $scope,
+    recipePerkService,
+    itemSignatureService,
+    craftingStationService
+) {
     let getFormIdFromLongName = function(longName) {
         let formIdStr = longName.substring(
             longName.lastIndexOf(':') + 1,
@@ -26,7 +31,7 @@ ngapp.controller('editRecipeModalController', function($scope, recipePerkService
     }
 
     $scope.updateCraftType = function() {
-        $scope.isForge = $scope.craftingStation === $scope.craftingStations['Forge'];
+        $scope.isForge = $scope.craftingStation === 'Forge';
     }
 
     $scope.closeModal = function() {
@@ -35,8 +40,10 @@ ngapp.controller('editRecipeModalController', function($scope, recipePerkService
 
     let recipeObject = $scope.modalOptions.recipeObject;
 
+    // editorId
     $scope.editorId = recipeObject.editorId || '';
 
+    // createdObject
     if (recipeObject.createdObject) {
         $scope.createdObject = recipeObject.createdObject;
         $scope.createdObjectSignature = getSignatureFromLongName(recipeObject.createdObject);
@@ -46,8 +53,29 @@ ngapp.controller('editRecipeModalController', function($scope, recipePerkService
         $scope.createdObjectSignature = itemSignatureService.getItemSignatures()[0];
     }
 
+    // createdObjectCount
     $scope.createdObjectCount = recipeObject.createdObjectCount || 1;
 
+    // craftingStation
+    let craftingStations = craftingStationService.getCraftingStations();
+    $scope.craftingStations = craftingStations.map(craftingStation => craftingStation.displayName);
+
+    if (recipeObject.craftingStation) {
+        let craftingStationDisplayName = craftingStations.find(craftingStation =>
+            craftingStation.longName === recipeObject.craftingStation
+        ).displayName;
+        $scope.craftingStation = $scope.craftingStations.find(displayName =>
+            craftingStationDisplayName === displayName
+        );
+    }
+    else {
+        $scope.craftingStation = $scope.craftingStations.find(craftingStation =>
+            craftingStation.displayName === 'Forge'
+        );
+    }
+    $scope.updateCraftType();
+
+    // conditionPerk
     let smithingPerks = recipePerkService.getSmithingPerks();
     $scope.conditionPerkOptions = ['None'].concat(smithingPerks.map(perk => perk.displayName));
 
@@ -63,32 +91,7 @@ ngapp.controller('editRecipeModalController', function($scope, recipePerkService
         $scope.conditionPerk = $scope.conditionPerkOptions[0];
     }
 
-    $scope.craftingStations = {
-        'Armor Table': 711544,
-        'Cookpot': 679091,
-        'Forge': 557317,
-        'Sharpening Wheel': 557320,
-        'Skyforge': 1001166,
-        'Smelter': 679118,
-        'Tanning Rack': 493162
-    };
-
-    if (recipeObject.craftingStation) {
-        // get reference to entry in craftingStations, using the FormID from the 'Workbench Keyword' element
-        let workbenchFormId = getFormIdFromLongName(recipeObject.craftingStation);
-        $scope.craftingStation = $scope.craftingStations[
-            Object.keys($scope.craftingStations).find(key =>
-                $scope.craftingStations[key] === workbenchFormId
-            )
-        ];
-    }
-    else {
-        $scope.craftingStation = $scope.craftingStations['Forge'];
-    }
-    $scope.updateCraftType();
-
-    $scope.itemSignatures = itemSignatureService.getItemSignatures();
-
+    // ingredients
     if (recipeObject.ingredients) {
         $scope.ingredients = recipeObject.ingredients.map(ingredient => ({
             item: ingredient.item,
@@ -99,4 +102,6 @@ ngapp.controller('editRecipeModalController', function($scope, recipePerkService
     else {
         $scope.ingredients = [];
     }
+
+    $scope.itemSignatures = itemSignatureService.getItemSignatures();
 });
