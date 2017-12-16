@@ -18,6 +18,19 @@ ngapp.run(function(exampleService, settingsService) {
 });
 
 ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureService) {
+    let recipeObjectsEqual = function(a, b) {
+        let order = function(obj) {
+            let ordered = {};
+            Object.keys(obj).sort().forEach(function(key) {
+                ordered[key] = obj[key];
+            });
+            return ordered;
+        }
+
+        return JSON.stringify(order(a)) === JSON.stringify(order(b));
+    };
+    let before = {};
+
     let menuItems = contextMenuFactory.treeViewItems;
     menuItems.push({
         id: 'Edit Recipe',
@@ -47,9 +60,12 @@ ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureServ
                         recipeObject.createdObject = xelib.LongName(handle);
                     }
 
+                    before = recipeObject;
+
                     scope.$emit('openModal', 'editRecipe', {
                         basePath: `${modulePath}/partials`,
-                        recipeObject: recipeObject
+                        recipeObject: recipeObject,
+                        callback: recipeObject => console.log(recipeObjectsEqual(before, recipeObject))
                     });
                 }
             });

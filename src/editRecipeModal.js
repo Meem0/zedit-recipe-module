@@ -38,6 +38,35 @@ ngapp.controller('editRecipeModalController', function(
         $scope.$emit('closeModal');
     };
 
+    $scope.saveAndClose = function() {
+        $scope.closeModal();
+
+        let recipeObject = {
+            editorId: $scope.editorId,
+            createdObject: $scope.createdObject,
+            createdObjectCount: $scope.createdObjectCount,
+            craftingStation:
+                craftingStationService.getCraftingStations().find(craftingStation =>
+                    craftingStation.displayName === $scope.craftingStation
+                ).longName,
+            ingredients: $scope.ingredients.map(ingredient => ({
+                item: ingredient.item,
+                count: ingredient.count
+            }))
+        };
+
+        if ($scope.isForge) {
+            let conditionPerk = recipePerkService.getSmithingPerks().find(perk =>
+                perk.displayName === $scope.conditionPerk
+            );
+            if (conditionPerk) {
+                recipeObject.conditionPerk = conditionPerk.longName;
+            }
+        }
+
+        this.modalOptions.callback(recipeObject);
+    }
+
     let recipeObject = $scope.modalOptions.recipeObject;
 
     // editorId
@@ -70,7 +99,7 @@ ngapp.controller('editRecipeModalController', function(
     }
     else {
         $scope.craftingStation = $scope.craftingStations.find(craftingStation =>
-            craftingStation.displayName === 'Forge'
+            craftingStation === 'Forge'
         );
     }
     $scope.updateCraftType();
