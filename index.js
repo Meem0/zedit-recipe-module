@@ -1,10 +1,6 @@
 /* global ngapp, xelib, modulePath */
 
-var itemSignatures = ['ALCH', 'AMMO', 'ARMO', 'BOOK', 'INGR', 'MISC', 'SCRL', 'SLGM', 'WEAP'];
-
-//= require ./src/exampleService.js
-//= require ./src/exampleSettings.js
-//= require ./src/editRecipeModal.js
+//= require ./src/*.js
 
 ngapp.run(function(exampleService, settingsService) {
     exampleService.helloWorld();
@@ -21,7 +17,7 @@ ngapp.run(function(exampleService, settingsService) {
     });
 });
 
-ngapp.run(function(contextMenuFactory) {
+ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureService) {
     let menuItems = contextMenuFactory.treeViewItems;
     menuItems.push({
         id: 'Edit Recipe',
@@ -30,7 +26,7 @@ ngapp.run(function(contextMenuFactory) {
                 let selectedNode = scope.selectedNodes[0];
                 if (!selectedNode.can_expand) {
                     let sig = xelib.Signature(selectedNode.handle);
-                    if (sig === 'COBJ' || itemSignatures.includes(sig)) {
+                    if (sig === 'COBJ' || itemSignatureService.getItemSignatures().includes(sig)) {
                         return true;
                     }
                 }
@@ -41,9 +37,19 @@ ngapp.run(function(contextMenuFactory) {
             items.push({
                 label: 'Edit Recipe',
                 callback: () => {
+                    let handle = scope.selectedNodes[0].handle;
+                    let sig = xelib.Signature(handle);
+                    let recipeObject = {};
+                    if (sig === 'COBJ') {
+                        recipeObject = recipeSerializeService.recordToObject(handle);
+                    }
+                    else if (itemSignatureService.getItemSignatures().includes(sig)) {
+                        recipeObject.createdObject = xelib.LongName(handle);
+                    }
+
                     scope.$emit('openModal', 'editRecipe', {
                         basePath: `${modulePath}/partials`,
-                        handle: scope.selectedNodes[0].handle
+                        recipeObject: recipeObject
                     });
                 }
             });
