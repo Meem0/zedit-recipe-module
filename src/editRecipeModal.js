@@ -51,7 +51,7 @@ const arcanePerk = {
     longName: 'ArcaneBlacksmith "Arcane Blacksmith" [PERK:0005218E]'
 };
 
-//= require ./recipeConditions.js
+//= require ./recipeConditionService.js
 
 getFormIdFromLongName = function(longName) {
     let formIdStr = longName.substring(
