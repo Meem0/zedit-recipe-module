@@ -1,9 +1,14 @@
+// modalOptions interface:
+//   recipeObject: the recipeObject to display
+//   callback(recipeObject): called when changes are saved, if there were changes
 ngapp.controller('editRecipeModalController', function(
     $scope,
     recipePerkService,
     itemSignatureService,
     craftingStationService
 ) {
+    let recipeObject = $scope.modalOptions.recipeObject;
+
     let getFormIdFromLongName = function(longName) {
         let formIdStr = longName.substring(
             longName.lastIndexOf(':') + 1,
@@ -18,6 +23,18 @@ ngapp.controller('editRecipeModalController', function(
         let recordHandle = xelib.GetRecord(0, formId);
         return xelib.Signature(recordHandle);
     }
+
+    let recipeObjectsEqual = function(a, b) {
+        let order = function(obj) {
+            let ordered = {};
+            Object.keys(obj).sort().forEach(function(key) {
+                ordered[key] = obj[key];
+            });
+            return ordered;
+        }
+
+        return JSON.stringify(order(a)) === JSON.stringify(order(b));
+    };
 
     $scope.addIngredient = function() {
         $scope.ingredients.push({item: '', count: 0});
@@ -41,7 +58,7 @@ ngapp.controller('editRecipeModalController', function(
     $scope.saveAndClose = function() {
         $scope.closeModal();
 
-        let recipeObject = {
+        let recipeObjectNew = {
             editorId: $scope.editorId,
             createdObject: $scope.createdObject,
             createdObjectCount: $scope.createdObjectCount,
@@ -60,14 +77,14 @@ ngapp.controller('editRecipeModalController', function(
                 perk.displayName === $scope.conditionPerk
             );
             if (conditionPerk) {
-                recipeObject.conditionPerk = conditionPerk.longName;
+                recipeObjectNew.conditionPerk = conditionPerk.longName;
             }
         }
 
-        this.modalOptions.callback(recipeObject);
+        if (!recipeObjectsEqual(recipeObject, recipeObjectNew)) {
+            this.modalOptions.callback(recipeObjectNew);
+        }
     }
-
-    let recipeObject = $scope.modalOptions.recipeObject;
 
     // editorId
     $scope.editorId = recipeObject.editorId || '';

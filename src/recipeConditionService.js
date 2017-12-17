@@ -84,4 +84,28 @@ ngapp.service('recipeConditionService', function(recipePerkService) {
         }
         return '';
     }
+
+    // if any of the conditions is a HasPerk for a smithing material perk, 
+    //   return the perk long name and the CTDA handle of the condition
+    // TODO - what if multiple condition perks?
+    this.getSmithingPerkLongNameFromConditionsHandle = function(conditionsHandle) {
+        let conditionHandles = xelib.GetElements(conditionsHandle);
+
+        for (var i = 0; i < conditionHandles.length; ++i) {
+            let ctdaHandle = xelib.GetElement(conditionHandles[i], 'CTDA');
+
+            let conditionPerk = this.getSmithingPerkLongNameFromConditionHandle(ctdaHandle);
+            if (conditionPerk !== '') {
+                return {
+                    conditionPerk: conditionPerk,
+                    handle: ctdaHandle
+                };
+            }
+        }
+
+        return {
+            conditionPerk: '',
+            handle: 0
+        };
+    }
 });

@@ -3,19 +3,6 @@
 //= require ./src/*.js
 
 ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureService) {
-    let recipeObjectsEqual = function(a, b) {
-        let order = function(obj) {
-            let ordered = {};
-            Object.keys(obj).sort().forEach(function(key) {
-                ordered[key] = obj[key];
-            });
-            return ordered;
-        }
-
-        return JSON.stringify(order(a)) === JSON.stringify(order(b));
-    };
-    let before = {};
-
     let menuItems = contextMenuFactory.treeViewItems;
     menuItems.push({
         id: 'Edit Recipe',
@@ -38,19 +25,21 @@ ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureServ
                     let handle = scope.selectedNodes[0].handle;
                     let sig = xelib.Signature(handle);
                     let recipeObject = {};
+                    let recipeHandle = 0;
                     if (sig === 'COBJ') {
                         recipeObject = recipeSerializeService.recordToObject(handle);
+                        recipeHandle = handle;
                     }
                     else if (itemSignatureService.getItemSignatures().includes(sig)) {
                         recipeObject.createdObject = xelib.LongName(handle);
                     }
 
-                    before = recipeObject;
+                    let recipeObjectBefore = recipeObject;
 
                     scope.$emit('openModal', 'editRecipe', {
                         basePath: `${modulePath}/partials`,
                         recipeObject: recipeObject,
-                        callback: recipeObject => console.log(recipeObjectsEqual(before, recipeObject))
+                        callback: recipeObject => recipeSerializeService.objectToRecord(recipeObject, recipeHandle)
                     });
                 }
             });

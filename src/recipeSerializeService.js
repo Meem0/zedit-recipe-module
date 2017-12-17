@@ -30,17 +30,9 @@ ngapp.service('recipeSerializeService', function(recipeConditionService) {
 
         let conditionsHandle = xelib.GetElement(recipeRecordHandle, 'Conditions');
         if (conditionsHandle != 0) {
-            let conditionHandles = xelib.GetElements(conditionsHandle);
-
-            for (var i = 0; i < conditionHandles.length; ++i) {
-                let ctdaHandle = xelib.GetElement(conditionHandles[i], 'CTDA');
-                
-                let conditionPerk = recipeConditionService.getSmithingPerkLongNameFromConditionHandle(ctdaHandle);
-                if (conditionPerk !== '') {
-                    recipeObject.conditionPerk = conditionPerk;
-                    break;
-                }
-            }
+            recipeObject.conditionPerk = recipeConditionService.getSmithingPerkLongNameFromConditionsHandle(
+                conditionsHandle
+            ).conditionPerk;
         }
 
         let ingredientsHandle = xelib.GetElement(recipeRecordHandle, 'Items');
@@ -50,5 +42,62 @@ ngapp.service('recipeSerializeService', function(recipeConditionService) {
         }));
 
         return recipeObject;
+    }
+
+    this.objectToRecord = function(recipeObject, recipeRecordHandle) {
+        if (xelib.GetValue(recipeRecordHandle, 'EDID') !== recipeObject.editorId) {
+            xelib.AddElementValue(recipeRecordHandle, 'EDID', recipeObject.editorId);
+        }
+        if (xelib.GetValue(recipeRecordHandle, 'CNAM') !== recipeObject.createdObject) {
+            xelib.AddElementValue(recipeRecordHandle, 'CNAM', recipeObject.createdObject);
+        }
+        if (xelib.GetUIntValue(recipeRecordHandle, 'NAM1') !== recipeObject.createdObjectCount) {
+            xelib.AddElementValue(recipeRecordHandle, 'NAM1', recipeObject.createdObjectCount.toString());
+        }
+        if (xelib.GetValue(recipeRecordHandle, 'BNAM') !== recipeObject.craftingStation) {
+            xelib.AddElementValue(recipeRecordHandle, 'BNAM', recipeObject.craftingStation);
+        }
+
+        let recordConditionPerk = '';
+        let recordConditionPerkHandle = 0;
+        let conditionsHandle = xelib.GetElement(recipeRecordHandle, 'Conditions');
+        if (conditionsHandle !== 0) {
+            let perk = recipeConditionService.getSmithingPerkLongNameFromConditionsHandle(
+                conditionsHandle
+            );
+            recordConditionPerk = perk.conditionPerk;
+            recordConditionPerkHandle = perk.handle;
+        }
+
+        // we want a smithing perk condition
+        if (recipeObject.conditionPerk) {
+            // the record has no smithing perk condition -> need to add one
+            if (!recordConditionPerk) {
+                let conditionHandle = 0;
+                // need to create the conditions array
+                if (conditionsHandle === 0) {
+                    conditionsHandle = xelib.AddElement(recipeRecordHandle, 'Conditions');
+                    conditionHandle = xelib.GetElement(conditionsHandle, '[0]');
+                }
+                // need to add an element to the existing conditions array
+                else {
+                    conditionHandle = xelib.AddArrayItem(conditionsHandle, '', '', '');
+                }
+
+                xelib.SetValue(conditionHandle, 'CTDA\\Function', 'HasPerk');
+                xelib.SetValue(conditionHandle, 'CTDA\\Comparison Value', '1');
+                xelib.SetValue(conditionHandle, 'CTDA\\Parameter #1', recipeObject.conditionPerk);
+            }
+            // the record has a smithing perk condition -> need to modify it
+            else if (recordConditionPerk !== recipeObject.conditionPerk) {
+                xelib.SetValue(recordConditionPerkHandle, 'Parameter #1', recipeObject.conditionPerk);
+            }
+        }
+        // we do not want a smithing perk condition, and the record has one -> need to remove it
+        else if (recordConditionPerk) {
+            xelib.RemoveElement(xelib.GetContainer(recordConditionPerkHandle));
+        }
+
+        // ingredients
     }
 });
