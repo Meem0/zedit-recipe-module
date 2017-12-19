@@ -9,15 +9,6 @@ ngapp.controller('editRecipeModalController', function(
 ) {
     let recipeObject = $scope.modalOptions.recipeObject;
 
-    let getFormIdFromLongName = function(longName) {
-        let formIdStr = longName.substring(
-            longName.lastIndexOf(':') + 1,
-            longName.lastIndexOf(']')
-        );
-        let formId = parseInt(formIdStr, 16);
-        return formId;
-    }
-
     let getSignatureFromLongName = function(longName) {
         let formId = getFormIdFromLongName(longName);
         let recordHandle = xelib.GetRecord(0, formId);

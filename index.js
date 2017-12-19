@@ -1,5 +1,15 @@
 /* global ngapp, xelib, modulePath */
 
+// global helpers
+getFormIdFromLongName = function(longName) {
+    let formIdStr = longName.substring(
+        longName.lastIndexOf(':') + 1,
+        longName.lastIndexOf(']')
+    );
+    let formId = parseInt(formIdStr, 16);
+    return formId;
+}
+
 //= require ./src/*.js
 
 ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureService) {

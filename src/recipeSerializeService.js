@@ -1,4 +1,17 @@
 ngapp.service('recipeSerializeService', function(recipeConditionService) {
+    let addArrayOrArrayItem = function(handle, arrayName) {
+        let arrayHandle = xelib.GetElement(handle, arrayName);
+        // need to create the conditions array
+        if (arrayHandle === 0) {
+            arrayHandle = xelib.AddElement(handle, arrayName);
+            return xelib.GetElement(arrayHandle, '[0]');
+        }
+        // need to add an element to the existing conditions array
+        else {
+            return xelib.AddArrayItem(arrayHandle, '', '', '');
+        }
+    }
+
     /* Deserializes a ConstructibleObject record into a recipe object with the following properties:
      *   editorId: string
      *   createdObject: string (LongName)
@@ -58,6 +71,7 @@ ngapp.service('recipeSerializeService', function(recipeConditionService) {
             xelib.AddElementValue(recipeRecordHandle, 'BNAM', recipeObject.craftingStation);
         }
 
+
         let recordConditionPerk = '';
         let recordConditionPerkHandle = 0;
         let conditionsHandle = xelib.GetElement(recipeRecordHandle, 'Conditions');
@@ -73,16 +87,7 @@ ngapp.service('recipeSerializeService', function(recipeConditionService) {
         if (recipeObject.conditionPerk) {
             // the record has no smithing perk condition -> need to add one
             if (!recordConditionPerk) {
-                let conditionHandle = 0;
-                // need to create the conditions array
-                if (conditionsHandle === 0) {
-                    conditionsHandle = xelib.AddElement(recipeRecordHandle, 'Conditions');
-                    conditionHandle = xelib.GetElement(conditionsHandle, '[0]');
-                }
-                // need to add an element to the existing conditions array
-                else {
-                    conditionHandle = xelib.AddArrayItem(conditionsHandle, '', '', '');
-                }
+                conditionHandle = addArrayOrArrayItem(recipeRecordHandle, 'Conditions');
 
                 xelib.SetValue(conditionHandle, 'CTDA\\Function', 'HasPerk');
                 xelib.SetValue(conditionHandle, 'CTDA\\Comparison Value', '1');
@@ -98,6 +103,53 @@ ngapp.service('recipeSerializeService', function(recipeConditionService) {
             xelib.RemoveElement(xelib.GetContainer(recordConditionPerkHandle));
         }
 
-        // ingredients
+        let recordIngredientsHandle = xelib.GetElement(recipeRecordHandle, 'Items');
+        let recordIngredientHandles = [];
+        if (recordIngredientsHandle !== 0) {
+            recordIngredientHandles = xelib.GetElements(recordIngredientsHandle);
+        }
+
+        // sort by form ID, since the Items array is
+        let ingredients = recipeObject.ingredients.slice().sort((i1, i2) =>
+            getFormIdFromLongName(i1.item) - getFormIdFromLongName(i2.item)
+        );
+
+        let objIdx = 0; // index of current "object ingredient" (ingredients we are writing to the record)
+        let recIdx = 0; // index of current "record ingredient" (ingredients that are already in the record)
+        while (objIdx < ingredients.length || recIdx < recordIngredientHandles.length) {
+            let objFormId = objIdx < ingredients.length ?
+                getFormIdFromLongName(ingredients[objIdx].item) : 0;
+            let recFormId = recIdx < recordIngredientHandles.length ?
+                getFormIdFromLongName(xelib.GetValue(recordIngredientHandles[recIdx], 'CNTO\\Item')) : 0;
+
+            // delete the record ingredient if:
+            //   a) we reached the end of the object ingredients but still have record ingredients left
+            //   b) we found a record ingredient that isn't in the list of object ingredients
+            //      (we can tell this because the lists are sorted)
+            if (objFormId === 0 || (recFormId < objFormId && recFormId !== 0)) {
+                xelib.RemoveElement(recordIngredientHandles[recIdx]);
+                ++recIdx;
+            }
+            // add a new record ingredient if:
+            //   a) we reached the end of the record ingredients but still have object ingredients left
+            //   b) we found an object ingredient that isn't in the list of record ingredients
+            else if (recFormId === 0 || objFormId < recFormId) {
+                let recordIngredientHandle = addArrayOrArrayItem(recipeRecordHandle, 'Items');
+                xelib.SetValue(recordIngredientHandle, 'CNTO\\Item', ingredients[objIdx].item);
+                xelib.SetUIntValue(recordIngredientHandle, 'CNTO\\Count', ingredients[objIdx].count);
+                ++objIdx;
+            }
+            // otherwise they are referring to the same item; edit the count if necessary
+            else {
+                if (
+                    ingredients[objIdx].count !==
+                    xelib.GetUIntValue(recordIngredientHandles[recIdx], 'CNTO\\Count')
+                ) {
+                    xelib.SetUIntValue(recordIngredientHandles[recIdx], 'CNTO\\Count', ingredients[objIdx].count);
+                }
+                ++objIdx;
+                ++recIdx;
+            }
+        }
     }
 });
