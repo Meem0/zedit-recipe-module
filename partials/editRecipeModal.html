@@ -82,7 +82,7 @@
             </section>
 
             <div class="primary-actions">
-                <button class="action-btn" ng-click="saveAndClose()">OK</button>
+                <button class="action-btn" ng-click="saveAndClose()" ng-disabled="!editorId">OK</button>
                 <button class="action-btn" ng-click="cancel()">Cancel</button>
             </div>
         </form>
