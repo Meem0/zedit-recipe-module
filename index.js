@@ -12,7 +12,7 @@ getFormIdFromLongName = function(longName) {
 
 //= require ./src/*.js
 
-ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureService) {
+ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignatureService) {
     let menuItems = contextMenuFactory.treeViewItems;
     menuItems.push({
         id: 'Edit Recipe',
@@ -45,14 +45,17 @@ ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureServ
                     }
 
                     let recipeObjectBefore = recipeObject;
+                    let action = $q.defer();
 
                     scope.$emit('openModal', 'editRecipe', {
                         basePath: `${modulePath}/partials`,
                         recipeObject: recipeObject,
-                        callback: recipeObject => {
-                            recipeSerializeService.objectToRecord(recipeObject, recipeHandle);
-                            scope.$root.$broadcast('reloadGUI');
-                        }
+                        action: action
+                    });
+
+                    action.promise.then(recipeObject => {
+                        recipeSerializeService.objectToRecord(recipeObject, recipeHandle);
+                        scope.$root.$broadcast('reloadGUI');
                     });
                 }
             });

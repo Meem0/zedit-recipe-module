@@ -1,6 +1,6 @@
 // modalOptions interface:
 //   recipeObject: the recipeObject to display
-//   callback(recipeObject): called when changes are saved, if there were changes
+//   action(recipeObject): resolved when changes are saved, if there were changes
 ngapp.controller('editRecipeModalController', function(
     $scope,
     recipePerkService,
@@ -51,8 +51,6 @@ ngapp.controller('editRecipeModalController', function(
     };
 
     $scope.saveAndClose = function() {
-        $scope.closeModal();
-
         let recipeObjectNew = {
             editorId: $scope.editorId,
             createdObject: $scope.createdObject,
@@ -77,8 +75,17 @@ ngapp.controller('editRecipeModalController', function(
         }
 
         if (!recipeObjectsEqual(recipeObject, recipeObjectNew)) {
-            this.modalOptions.callback(recipeObjectNew);
+            this.modalOptions.action.resolve(recipeObjectNew);
+            $scope.closeModal();
         }
+        else {
+            $scope.cancel();
+        }
+    }
+
+    $scope.cancel = function() {
+        this.modalOptions.action.reject();
+        $scope.closeModal();
     }
 
     // editorId
