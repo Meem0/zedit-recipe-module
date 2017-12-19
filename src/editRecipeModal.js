@@ -11,8 +11,12 @@ ngapp.controller('editRecipeModalController', function(
 
     let getSignatureFromLongName = function(longName) {
         let formId = getFormIdFromLongName(longName);
-        let recordHandle = xelib.GetRecord(0, formId);
-        return xelib.Signature(recordHandle);
+        let signature = '';
+        xelib.WithHandle(
+            xelib.GetRecord(0, formId),
+            handle => signature = xelib.Signature(handle)
+        );
+        return signature;
     }
 
     let recipeObjectsEqual = function(a, b) {
