@@ -49,10 +49,11 @@ ngapp.service('recipeSerializeService', function(recipeConditionService) {
         }
 
         let ingredientsHandle = xelib.GetElement(recipeRecordHandle, 'Items');
-        recipeObject.ingredients = xelib.GetElements(ingredientsHandle).map(ingredientHandle => ({
-            item: xelib.GetValue(xelib.GetElement(ingredientHandle, 'CNTO - Item\\Item')),
-            count: xelib.GetUIntValue(xelib.GetElement(ingredientHandle, 'CNTO - Item\\Count'))
-        }));
+        recipeObject.ingredients = ingredientsHandle === 0 ? [] :
+            xelib.GetElements(ingredientsHandle).map(ingredientHandle => ({
+                item: xelib.GetValue(xelib.GetElement(ingredientHandle, 'CNTO - Item\\Item')),
+                count: xelib.GetUIntValue(xelib.GetElement(ingredientHandle, 'CNTO - Item\\Count'))
+            }));
 
         return recipeObject;
     }
