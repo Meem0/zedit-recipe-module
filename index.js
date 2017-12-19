@@ -49,7 +49,10 @@ ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureServ
                     scope.$emit('openModal', 'editRecipe', {
                         basePath: `${modulePath}/partials`,
                         recipeObject: recipeObject,
-                        callback: recipeObject => recipeSerializeService.objectToRecord(recipeObject, recipeHandle)
+                        callback: recipeObject => {
+                            recipeSerializeService.objectToRecord(recipeObject, recipeHandle);
+                            scope.$root.$broadcast('reloadGUI');
+                        }
                     });
                 }
             });
