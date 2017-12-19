@@ -76,27 +76,23 @@ ngapp.service('recipeSerializeService', function(recipeConditionService) {
 
     this.objectToRecord = function(recipeObject, recipeRecordHandle) {
         if (xelib.GetValue(recipeRecordHandle, 'EDID') !== recipeObject.editorId) {
-            xelib.WithHandle(
-                xelib.AddElementValue(recipeRecordHandle, 'EDID', recipeObject.editorId),
-                handle => {}
+            xelib.Release(
+                xelib.AddElementValue(recipeRecordHandle, 'EDID', recipeObject.editorId)
             );
         }
         if (xelib.GetValue(recipeRecordHandle, 'CNAM') !== recipeObject.createdObject) {
-            xelib.WithHandle(
-                xelib.AddElementValue(recipeRecordHandle, 'CNAM', recipeObject.createdObject),
-                handle => {}
+            xelib.Release(
+                xelib.AddElementValue(recipeRecordHandle, 'CNAM', recipeObject.createdObject)
             );
         }
         if (xelib.GetUIntValue(recipeRecordHandle, 'NAM1') !== recipeObject.createdObjectCount) {
-            xelib.WithHandle(
-                xelib.AddElementValue(recipeRecordHandle, 'NAM1', recipeObject.createdObjectCount.toString()),
-                handle => {}
+            xelib.Release(
+                xelib.AddElementValue(recipeRecordHandle, 'NAM1', recipeObject.createdObjectCount.toString())
             );
         }
         if (xelib.GetValue(recipeRecordHandle, 'BNAM') !== recipeObject.craftingStation) {
-            xelib.WithHandle(
-                xelib.AddElementValue(recipeRecordHandle, 'BNAM', recipeObject.craftingStation),
-                handle => {}
+            xelib.Release(
+                xelib.AddElementValue(recipeRecordHandle, 'BNAM', recipeObject.craftingStation)
             );
         }
 
