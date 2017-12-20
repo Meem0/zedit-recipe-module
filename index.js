@@ -1,11 +1,15 @@
 /* global ngapp, xelib, modulePath */
 
 // global helpers
-getFormIdFromLongName = function(longName) {
-    let formIdStr = longName.substring(
+getFormIdStringFromLongName = function(longName) {
+    return longName.substring(
         longName.lastIndexOf(':') + 1,
         longName.lastIndexOf(']')
     );
+}
+
+getFormIdFromLongName = function(longName) {
+    let formIdStr = getFormIdStringFromLongName(longName);
     let formId = parseInt(formIdStr, 16);
     return formId;
 }
@@ -15,6 +19,20 @@ getFormIdFromLongName = function(longName) {
 ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignatureService, editModalFactory) {
     let addRecipeRequiredMasters = function(fileHandle, recipeObject) {
         xelib.AddMaster(fileHandle, 'Skyrim.esm');
+        [
+            recipeObject.createdObject,
+            ...(recipeObject.ingredients.map(i => i.item))
+        ].forEach(reference => {
+            xelib.WithHandle(
+                xelib.FileByLoadOrder(
+                    parseInt(
+                        getFormIdStringFromLongName(reference).substring(0, 2),
+                        16
+                    )
+                ),
+                masterFileHandle => xelib.AddMaster(fileHandle, xelib.GetFileName(masterFileHandle))
+            );
+        });
     }
 
     let writeRecipeToRecord = function(scope, recipeHandle, recipeObject) {
