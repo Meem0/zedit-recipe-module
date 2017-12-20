@@ -1,0 +1,22 @@
+<div class="modal-container" unfocus-modal="cancel()">
+    <div class="modal">
+        <form>
+            <div class="close-modal" ng-click="cancel()"></div>
+
+            <h2>Save {{label}} into</h2>
+
+            <section>
+                <list-view items="plugins" default-action="save">
+                    <input type="radio" ng-model="$parent.$parent.$parent.destinationFileName" ng-value="$parent.item.filename"/>
+                    <span ng-show="$parent.item.loadOrder !== undefined">[{{$parent.item.loadOrder | hex:2 }}]</span>
+                    {{$parent.item.filename}}
+                </list-view>
+            </section>
+
+            <div class="primary-actions">
+                <button class="action-btn positive" ng-click="save()" ng-disabled="!destinationFileName">OK</button>
+                <button class="action-btn" ng-click="cancel()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -4,14 +4,14 @@
     }
 </style>
 
-<div class="modal-container" unfocus-modal="closeModal()">
+<div class="modal-container" unfocus-modal="cancel()">
     <div
         class="modal"
         ng-click="$broadcast('parentClick', $event)"
         ng-keydown="$broadcast('keyDown', $event)"
         tabindex="0"
         autofocus>
-        <div class="close-modal" ng-click="closeModal()"></div>
+        <div class="close-modal" ng-click="cancel()"></div>
         <form>
             <h2>Edit Recipe</h2>
 
@@ -82,8 +82,8 @@
             </section>
 
             <div class="primary-actions">
-                <button class="action-btn" ng-click="saveAndClose()">OK</button>
-                <button class="action-btn" ng-click="closeModal()">Cancel</button>
+                <button class="action-btn" ng-click="saveAndClose()" ng-disabled="!editorId">OK</button>
+                <button class="action-btn" ng-click="cancel()">Cancel</button>
             </div>
         </form>
     </div>

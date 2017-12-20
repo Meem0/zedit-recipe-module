@@ -1,5 +1,80 @@
 /* global ngapp, xelib, modulePath */
 
+// global helpers
+getFormIdStringFromLongName = function(longName) {
+    return longName.substring(
+        longName.lastIndexOf(':') + 1,
+        longName.lastIndexOf(']')
+    );
+}
+
+getFormIdFromLongName = function(longName) {
+    let formIdStr = getFormIdStringFromLongName(longName);
+    let formId = parseInt(formIdStr, 16);
+    return formId;
+}
+
+getRecipeMasters = function(recipeObject) {
+    let loadOrders = [
+        recipeObject.createdObject,
+        ...(recipeObject.ingredients.map(i => i.item))
+    ].map(reference =>
+        parseInt(
+            getFormIdStringFromLongName(reference).substring(0, 2),
+            16
+        )
+    );
+    loadOrders = Array.from(new Set([0, ...loadOrders])).sort();
+
+    return loadOrders.map(
+        loadOrder => xelib.FileByLoadOrder(loadOrder)
+    );
+}
+
+ngapp.controller('chooseNewRecipeFileModalController', function($scope) {
+    // helper functions
+    let initPlugins = function() {
+        let lastMasterLoadOrder = 0;
+        xelib.WithHandles(
+            getRecipeMasters($scope.modalOptions.recipeObject),
+            masterFileHandles => {
+                lastMasterLoadOrder = xelib.GetFileLoadOrder(masterFileHandles[masterFileHandles.length - 1]);
+            }
+        );
+
+        let plugins = [];
+        xelib.WithHandles(
+            xelib.GetElements(),
+            fileHandles => {
+                plugins = fileHandles.filter(fileHandle =>
+                    xelib.GetIsEditable(fileHandle) && xelib.GetFileLoadOrder(fileHandle) >= lastMasterLoadOrder
+                ).map(fileHandle => ({
+                    filename: xelib.Name(fileHandle),
+                    loadOrder: xelib.GetFileLoadOrder(fileHandle)
+                }));
+            }
+        );
+        $scope.plugins = plugins.concat({
+            filename: '< new file >'
+        });
+    };
+
+    // scope functions
+    $scope.save = function() {
+        $scope.modalOptions.action.resolve($scope.destinationFileName);
+        $scope.$emit('closeModal');
+    };
+
+    $scope.cancel = function() {
+        $scope.modalOptions.action.reject();
+        $scope.$emit('closeModal');
+    };
+
+    $scope.label = $scope.modalOptions.recipeObject.editorId;
+    $scope.destinationFileName = '';
+    initPlugins();
+});
+
 ngapp.service('craftingStationService', function() {
     const craftingStations = [
         {
@@ -44,26 +119,38 @@ ngapp.service('craftingStationService', function() {
     }
 });
 
+// modalOptions interface:
+//   recipeObject: the recipeObject to display
+//   action(recipeObject): resolved when changes are saved, if there were changes
 ngapp.controller('editRecipeModalController', function(
     $scope,
     recipePerkService,
     itemSignatureService,
     craftingStationService
 ) {
-    let getFormIdFromLongName = function(longName) {
-        let formIdStr = longName.substring(
-            longName.lastIndexOf(':') + 1,
-            longName.lastIndexOf(']')
-        );
-        let formId = parseInt(formIdStr, 16);
-        return formId;
-    }
+    let recipeObject = $scope.modalOptions.recipeObject;
 
     let getSignatureFromLongName = function(longName) {
         let formId = getFormIdFromLongName(longName);
-        let recordHandle = xelib.GetRecord(0, formId);
-        return xelib.Signature(recordHandle);
+        let signature = '';
+        xelib.WithHandle(
+            xelib.GetRecord(0, formId),
+            handle => signature = xelib.Signature(handle)
+        );
+        return signature;
     }
+
+    let recipeObjectsEqual = function(a, b) {
+        let order = function(obj) {
+            let ordered = {};
+            Object.keys(obj).sort().forEach(function(key) {
+                ordered[key] = obj[key];
+            });
+            return ordered;
+        }
+
+        return JSON.stringify(order(a)) === JSON.stringify(order(b));
+    };
 
     $scope.addIngredient = function() {
         $scope.ingredients.push({item: '', count: 0});
@@ -85,9 +172,7 @@ ngapp.controller('editRecipeModalController', function(
     };
 
     $scope.saveAndClose = function() {
-        $scope.closeModal();
-
-        let recipeObject = {
+        let recipeObjectNew = {
             editorId: $scope.editorId,
             createdObject: $scope.createdObject,
             createdObjectCount: $scope.createdObjectCount,
@@ -106,14 +191,23 @@ ngapp.controller('editRecipeModalController', function(
                 perk.displayName === $scope.conditionPerk
             );
             if (conditionPerk) {
-                recipeObject.conditionPerk = conditionPerk.longName;
+                recipeObjectNew.conditionPerk = conditionPerk.longName;
             }
         }
 
-        this.modalOptions.callback(recipeObject);
+        if (!recipeObjectsEqual(recipeObject, recipeObjectNew)) {
+            this.modalOptions.action.resolve(recipeObjectNew);
+            $scope.closeModal();
+        }
+        else {
+            $scope.cancel();
+        }
     }
 
-    let recipeObject = $scope.modalOptions.recipeObject;
+    $scope.cancel = function() {
+        this.modalOptions.action.reject();
+        $scope.closeModal();
+    }
 
     // editorId
     $scope.editorId = recipeObject.editorId || '';
@@ -276,6 +370,30 @@ ngapp.service('recipeConditionService', function(recipePerkService) {
         }
         return '';
     }
+
+    // if any of the conditions is a HasPerk for a smithing material perk, 
+    //   return the perk long name and the CTDA handle of the condition
+    // TODO - what if multiple condition perks?
+    this.getSmithingPerkLongNameFromConditionsHandle = function(conditionsHandle) {
+        let conditionHandles = xelib.GetElements(conditionsHandle);
+
+        for (var i = 0; i < conditionHandles.length; ++i) {
+            let ctdaHandle = xelib.GetElement(conditionHandles[i], 'CTDA');
+
+            let conditionPerk = this.getSmithingPerkLongNameFromConditionHandle(ctdaHandle);
+            if (conditionPerk !== '') {
+                return {
+                    conditionPerk: conditionPerk,
+                    handle: ctdaHandle
+                };
+            }
+        }
+
+        return {
+            conditionPerk: '',
+            handle: 0
+        };
+    }
 });
 
 ngapp.service('recipePerkService', function() {
@@ -342,6 +460,24 @@ ngapp.service('recipePerkService', function() {
 });
 
 ngapp.service('recipeSerializeService', function(recipeConditionService) {
+    let addArrayOrArrayItem = function(handle, arrayName) {
+        let addedItemHandle = 0;
+        xelib.WithHandle(xelib.GetElement(handle, arrayName), arrayHandle => {
+            // need to create the conditions array
+            if (arrayHandle === 0) {
+                xelib.WithHandle(
+                    xelib.AddElement(handle, arrayName),
+                    addedArrayHandle => addedItemHandle = xelib.GetElement(addedArrayHandle, '[0]')
+                );
+            }
+            // need to add an element to the existing conditions array
+            else {
+                addedItemHandle = xelib.AddArrayItem(arrayHandle, '', '', '');
+            }
+        });
+        return addedItemHandle;
+    }
+
     /* Deserializes a ConstructibleObject record into a recipe object with the following properties:
      *   editorId: string
      *   createdObject: string (LongName)
@@ -361,55 +497,267 @@ ngapp.service('recipeSerializeService', function(recipeConditionService) {
         let recipeObject = {};
 
         recipeObject.editorId = xelib.EditorID(recipeRecordHandle);
-        recipeObject.createdObject = xelib.GetValue(
-            xelib.GetElement(recipeRecordHandle, 'CNAM - Created Object')
+        xelib.WithHandle(
+            xelib.GetElement(recipeRecordHandle, 'CNAM - Created Object'),
+            handle => recipeObject.createdObject = xelib.GetValue(handle)
         );
-        recipeObject.createdObjectCount = xelib.GetUIntValue(
-            xelib.GetElement(recipeRecordHandle, 'NAM1 - Created Object Count')
+        xelib.WithHandle(
+            xelib.GetElement(recipeRecordHandle, 'NAM1 - Created Object Count'),
+            handle => recipeObject.createdObjectCount = xelib.GetUIntValue(handle)
         );
-        recipeObject.craftingStation = xelib.GetValue(
-            xelib.GetElement(recipeRecordHandle, 'BNAM - Workbench Keyword')
+        xelib.WithHandle(
+            xelib.GetElement(recipeRecordHandle, 'BNAM - Workbench Keyword'),
+            handle => recipeObject.craftingStation = xelib.GetValue(handle)
         );
 
-        let conditionsHandle = xelib.GetElement(recipeRecordHandle, 'Conditions');
-        if (conditionsHandle != 0) {
-            let conditionHandles = xelib.GetElements(conditionsHandle);
-
-            for (var i = 0; i < conditionHandles.length; ++i) {
-                let ctdaHandle = xelib.GetElement(conditionHandles[i], 'CTDA');
-                
-                let conditionPerk = recipeConditionService.getSmithingPerkLongNameFromConditionHandle(ctdaHandle);
-                if (conditionPerk !== '') {
-                    recipeObject.conditionPerk = conditionPerk;
-                    break;
+        xelib.WithHandle(
+            xelib.GetElement(recipeRecordHandle, 'Conditions'),
+            conditionsHandle => {
+                if (conditionsHandle != 0) {
+                    recipeObject.conditionPerk = recipeConditionService.getSmithingPerkLongNameFromConditionsHandle(
+                        conditionsHandle
+                    ).conditionPerk;
                 }
             }
-        }
+        );
 
-        let ingredientsHandle = xelib.GetElement(recipeRecordHandle, 'Items');
-        recipeObject.ingredients = xelib.GetElements(ingredientsHandle).map(ingredientHandle => ({
-            item: xelib.GetValue(xelib.GetElement(ingredientHandle, 'CNTO - Item\\Item')),
-            count: xelib.GetUIntValue(xelib.GetElement(ingredientHandle, 'CNTO - Item\\Count'))
-        }));
+        xelib.WithHandle(
+            xelib.GetElement(recipeRecordHandle, 'Items'),
+            ingredientsHandle => {
+                recipeObject.ingredients = ingredientsHandle === 0 ? [] :
+                    xelib.GetElements(ingredientsHandle).map(ingredientHandle => ({
+                        item: xelib.GetValue(xelib.GetElement(ingredientHandle, 'CNTO - Item\\Item')),
+                        count: xelib.GetUIntValue(xelib.GetElement(ingredientHandle, 'CNTO - Item\\Count'))
+                    }));
+            }
+        );
 
         return recipeObject;
+    }
+
+    this.objectToRecord = function(recipeObject, recipeRecordHandle) {
+        if (xelib.GetValue(recipeRecordHandle, 'EDID') !== recipeObject.editorId) {
+            xelib.Release(
+                xelib.AddElementValue(recipeRecordHandle, 'EDID', recipeObject.editorId)
+            );
+        }
+        if (xelib.GetValue(recipeRecordHandle, 'CNAM') !== recipeObject.createdObject) {
+            xelib.Release(
+                xelib.AddElementValue(recipeRecordHandle, 'CNAM', recipeObject.createdObject)
+            );
+        }
+        if (xelib.GetUIntValue(recipeRecordHandle, 'NAM1') !== recipeObject.createdObjectCount) {
+            xelib.Release(
+                xelib.AddElementValue(recipeRecordHandle, 'NAM1', recipeObject.createdObjectCount.toString())
+            );
+        }
+        if (xelib.GetValue(recipeRecordHandle, 'BNAM') !== recipeObject.craftingStation) {
+            xelib.Release(
+                xelib.AddElementValue(recipeRecordHandle, 'BNAM', recipeObject.craftingStation)
+            );
+        }
+
+
+        let recordConditionPerk = '';
+        let recordConditionPerkHandle = 0;
+        xelib.WithHandle(
+            xelib.GetElement(recipeRecordHandle, 'Conditions'),
+            conditionsHandle => {
+                if (conditionsHandle !== 0) {
+                    let perk = recipeConditionService.getSmithingPerkLongNameFromConditionsHandle(
+                        conditionsHandle
+                    );
+                    recordConditionPerk = perk.conditionPerk;
+                    recordConditionPerkHandle = perk.handle;
+                }
+            }
+        );
+
+        // the record has a smithing perk condition
+        if (recordConditionPerk) {
+            xelib.WithHandle(recordConditionPerkHandle, recordConditionPerkHandle => {
+                // we do not want a smithing perk condition -> need to remove the record
+                if (!recipeObject.conditionPerk) {
+                    xelib.WithHandle(
+                        xelib.GetContainer(recordConditionPerkHandle),
+                        handle => xelib.RemoveElement(handle)
+                    );
+                }
+                // we want a smithing perk condition -> need to modify the record
+                else if (recordConditionPerk !== recipeObject.conditionPerk) {
+                    xelib.SetValue(recordConditionPerkHandle, 'Parameter #1', recipeObject.conditionPerk);
+                }
+            });
+        }
+        // we want a smithing perk condition, and the record doesn't have one -> need to add one
+        else if (recipeObject.conditionPerk) {
+            xelib.WithHandle(
+                addArrayOrArrayItem(recipeRecordHandle, 'Conditions'),
+                conditionHandle => {
+                    xelib.SetValue(conditionHandle, 'CTDA\\Function', 'HasPerk');
+                    xelib.SetValue(conditionHandle, 'CTDA\\Comparison Value', '1');
+                    xelib.SetValue(conditionHandle, 'CTDA\\Parameter #1', recipeObject.conditionPerk);
+                }
+            );
+        }
+
+
+        let recordIngredientHandles = [];
+        xelib.WithHandle(
+            xelib.GetElement(recipeRecordHandle, 'Items'),
+            recordIngredientsHandle => {
+                if (recordIngredientsHandle !== 0) {
+                    recordIngredientHandles = xelib.GetElements(recordIngredientsHandle);
+                }
+            }
+        )
+
+        // sort by form ID, since the Items array is
+        let ingredients = recipeObject.ingredients.slice().sort((i1, i2) =>
+            getFormIdFromLongName(i1.item) - getFormIdFromLongName(i2.item)
+        );
+
+        xelib.WithHandles(
+            recordIngredientHandles,
+            recordIngredientHandles => {
+                let objIdx = 0; // index of current "object ingredient" (ingredients we are writing to the record)
+                let recIdx = 0; // index of current "record ingredient" (ingredients that are already in the record)
+                while (objIdx < ingredients.length || recIdx < recordIngredientHandles.length) {
+                    let objFormId = objIdx < ingredients.length ?
+                        getFormIdFromLongName(ingredients[objIdx].item) : 0;
+                    let recFormId = recIdx < recordIngredientHandles.length ?
+                        getFormIdFromLongName(xelib.GetValue(recordIngredientHandles[recIdx], 'CNTO\\Item')) : 0;
+        
+                    // delete the record ingredient if:
+                    //   a) we reached the end of the object ingredients but still have record ingredients left
+                    //   b) we found a record ingredient that isn't in the list of object ingredients
+                    //      (we can tell this because the lists are sorted)
+                    if (objFormId === 0 || (recFormId < objFormId && recFormId !== 0)) {
+                        xelib.RemoveElement(recordIngredientHandles[recIdx]);
+                        ++recIdx;
+                    }
+                    // add a new record ingredient if:
+                    //   a) we reached the end of the record ingredients but still have object ingredients left
+                    //   b) we found an object ingredient that isn't in the list of record ingredients
+                    else if (recFormId === 0 || objFormId < recFormId) {
+                        xelib.WithHandle(
+                            addArrayOrArrayItem(recipeRecordHandle, 'Items'),
+                            recordIngredientHandle => {
+                                xelib.SetValue(recordIngredientHandle, 'CNTO\\Item', ingredients[objIdx].item);
+                                xelib.SetUIntValue(recordIngredientHandle, 'CNTO\\Count', ingredients[objIdx].count);
+                                ++objIdx;
+                            }
+                        );
+                    }
+                    // otherwise they are referring to the same item; edit the count if necessary
+                    else {
+                        if (
+                            ingredients[objIdx].count !==
+                            xelib.GetUIntValue(recordIngredientHandles[recIdx], 'CNTO\\Count')
+                        ) {
+                            xelib.SetUIntValue(
+                                recordIngredientHandles[recIdx],
+                                'CNTO\\Count',
+                                ingredients[objIdx].count
+                            );
+                        }
+                        ++objIdx;
+                        ++recIdx;
+                    }
+                }
+            }
+        )
     }
 });
 
 
-ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureService) {
-    let recipeObjectsEqual = function(a, b) {
-        let order = function(obj) {
-            let ordered = {};
-            Object.keys(obj).sort().forEach(function(key) {
-                ordered[key] = obj[key];
+ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignatureService, editModalFactory) {
+    let addRecipeRequiredMasters = function(fileHandle, recipeObject) {
+        xelib.WithHandles(
+            getRecipeMasters(recipeObject),
+            masterFileHandles => {
+                masterFileHandles.forEach(
+                    masterFileHandle => xelib.AddMaster(fileHandle, xelib.GetFileName(masterFileHandle))
+                );
+            }
+        );
+    }
+
+    let writeRecipeToRecord = function(scope, recipeHandle, recipeObject) {
+        xelib.WithHandle(
+            xelib.GetElementFile(recipeHandle),
+            fileHandle => addRecipeRequiredMasters(fileHandle, recipeObject)
+        );
+        recipeSerializeService.objectToRecord(recipeObject, recipeHandle);
+        scope.$root.$broadcast('reloadGUI');
+    }
+
+    let createRecipeRecord = function(scope, fileHandle, recipeObject) {
+        xelib.WithHandle(
+            xelib.AddElement(fileHandle, 'COBJ\\COBJ'),
+            recipeHandle => {
+                writeRecipeToRecord(scope, recipeHandle, recipeObject);
+            }
+        );
+    }
+
+    let addNewRecipe = function(scope, filename, recipeObject) {
+        if (filename == '< new file >') {
+            editModalFactory.addFile(scope, addedFilename => {
+                xelib.WithHandle(
+                    xelib.AddFile(addedFilename),
+                    fileHandle => createRecipeRecord(scope, fileHandle, recipeObject)
+                );
             });
-            return ordered;
+        }
+        else {
+            xelib.WithHandle(
+                xelib.FileByName(filename),
+                fileHandle => createRecipeRecord(scope, fileHandle, recipeObject)
+            );
+        }
+    }
+
+    let editRecipe = function(scope, handle) {
+        let sig = xelib.Signature(handle);
+        let recipeObject = {};
+        let recipeHandle = 0;
+        if (sig === 'COBJ') {
+            recipeObject = recipeSerializeService.recordToObject(handle);
+            recipeHandle = handle;
+        }
+        else if (itemSignatureService.getItemSignatures().includes(sig)) {
+            recipeObject.createdObject = xelib.LongName(handle);
         }
 
-        return JSON.stringify(order(a)) === JSON.stringify(order(b));
-    };
-    let before = {};
+        let recipeObjectBefore = recipeObject;
+        let action = $q.defer();
+
+        scope.$emit('openModal', 'editRecipe', {
+            basePath: `${modulePath}/partials`,
+            recipeObject: recipeObject,
+            action: action
+        });
+
+        action.promise.then(recipeObject => {
+            if (recipeHandle === 0) {
+                let chooseFileAction = $q.defer();
+
+                scope.$emit('openModal', 'chooseNewRecipeFile', {
+                    basePath: `${modulePath}/partials`,
+                    recipeObject: recipeObject,
+                    action: chooseFileAction
+                });
+
+                chooseFileAction.promise.then(filename => {
+                    addNewRecipe(scope, filename, recipeObject)
+                });
+            }
+            else {
+                writeRecipeToRecord(scope, recipeHandle, recipeObject);
+            }
+        });
+    }
 
     let menuItems = contextMenuFactory.treeViewItems;
     menuItems.push({
@@ -429,25 +777,7 @@ ngapp.run(function(contextMenuFactory, recipeSerializeService, itemSignatureServ
         build: (scope, items) => {
             items.push({
                 label: 'Edit Recipe',
-                callback: () => {
-                    let handle = scope.selectedNodes[0].handle;
-                    let sig = xelib.Signature(handle);
-                    let recipeObject = {};
-                    if (sig === 'COBJ') {
-                        recipeObject = recipeSerializeService.recordToObject(handle);
-                    }
-                    else if (itemSignatureService.getItemSignatures().includes(sig)) {
-                        recipeObject.createdObject = xelib.LongName(handle);
-                    }
-
-                    before = recipeObject;
-
-                    scope.$emit('openModal', 'editRecipe', {
-                        basePath: `${modulePath}/partials`,
-                        recipeObject: recipeObject,
-                        callback: recipeObject => console.log(recipeObjectsEqual(before, recipeObject))
-                    });
-                }
+                callback: () => editRecipe(scope, scope.selectedNodes[0].handle)
             });
         }
     });
