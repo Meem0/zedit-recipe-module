@@ -12,19 +12,44 @@ getFormIdFromLongName = function(longName) {
 
 //= require ./src/*.js
 
-ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignatureService) {
-    let addNewRecipe = function(filename) {
-        let recipeHandle = 0;
-        if (filename === '< new file >') {
+ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignatureService, editModalFactory) {
+    let addRecipeRequiredMasters = function(fileHandle, recipeObject) {
+        xelib.AddMaster(fileHandle, 'Skyrim.esm');
+    }
+
+    let writeRecipeToRecord = function(scope, recipeHandle, recipeObject) {
+        xelib.WithHandle(
+            xelib.GetElementFile(recipeHandle),
+            fileHandle => addRecipeRequiredMasters(fileHandle, recipeObject)
+        );
+        recipeSerializeService.objectToRecord(recipeObject, recipeHandle);
+        scope.$root.$broadcast('reloadGUI');
+    }
+
+    let createRecipeRecord = function(scope, fileHandle, recipeObject) {
+        xelib.WithHandle(
+            xelib.AddElement(fileHandle, 'COBJ\\COBJ'),
+            recipeHandle => {
+                writeRecipeToRecord(scope, recipeHandle, recipeObject);
+            }
+        );
+    }
+
+    let addNewRecipe = function(scope, filename, recipeObject) {
+        if (filename == '< new file >') {
+            editModalFactory.addFile(scope, addedFilename => {
+                xelib.WithHandle(
+                    xelib.AddFile(addedFilename),
+                    fileHandle => createRecipeRecord(scope, fileHandle, recipeObject)
+                );
+            });
         }
         else {
             xelib.WithHandle(
-                xelib.FileByName(filename), fileHandle => {
-                    recipeHandle = xelib.AddElement(fileHandle, 'COBJ\\COBJ');
-                }
+                xelib.FileByName(filename),
+                fileHandle => createRecipeRecord(scope, fileHandle, recipeObject)
             );
         }
-        return recipeHandle;
     }
 
     let editRecipe = function(scope, handle) {
@@ -49,11 +74,6 @@ ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignature
         });
 
         action.promise.then(recipeObject => {
-            let writeRecordAction = recipeHandle => {
-                recipeSerializeService.objectToRecord(recipeObject, recipeHandle);
-                scope.$root.$broadcast('reloadGUI');
-            };
-
             if (recipeHandle === 0) {
                 let chooseFileAction = $q.defer();
 
@@ -64,16 +84,11 @@ ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignature
                 });
 
                 chooseFileAction.promise.then(filename => {
-                    xelib.WithHandle(
-                        addNewRecipe(filename),
-                        newRecipeHandle => {
-                            writeRecordAction(newRecipeHandle);
-                        }
-                    );
+                    addNewRecipe(scope, filename, recipeObject)
                 });
             }
             else {
-                writeRecordAction(recipeHandle);
+                writeRecipeToRecord(scope, recipeHandle, recipeObject);
             }
         });
     }
