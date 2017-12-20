@@ -1,11 +1,21 @@
 ngapp.controller('chooseNewRecipeFileModalController', function($scope) {
     // helper functions
     let initPlugins = function() {
+        let lastMasterLoadOrder = 0;
+        xelib.WithHandles(
+            getRecipeMasters($scope.modalOptions.recipeObject),
+            masterFileHandles => {
+                lastMasterLoadOrder = xelib.GetFileLoadOrder(masterFileHandles[masterFileHandles.length - 1]);
+            }
+        );
+
         let plugins = [];
         xelib.WithHandles(
             xelib.GetElements(),
             fileHandles => {
-                plugins = fileHandles.filter(xelib.GetIsEditable).map(fileHandle => ({
+                plugins = fileHandles.filter(fileHandle =>
+                    xelib.GetIsEditable(fileHandle) && xelib.GetFileLoadOrder(fileHandle) >= lastMasterLoadOrder
+                ).map(fileHandle => ({
                     filename: xelib.Name(fileHandle),
                     loadOrder: xelib.GetFileLoadOrder(fileHandle)
                 }));
@@ -28,6 +38,6 @@ ngapp.controller('chooseNewRecipeFileModalController', function($scope) {
     };
 
     $scope.label = $scope.modalOptions.recipeObject.editorId;
-    $scope.destinationFileName = 'ayy lmao';
+    $scope.destinationFileName = '';
     initPlugins();
 });

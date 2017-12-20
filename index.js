@@ -14,25 +14,35 @@ getFormIdFromLongName = function(longName) {
     return formId;
 }
 
+getRecipeMasters = function(recipeObject) {
+    let loadOrders = [
+        recipeObject.createdObject,
+        ...(recipeObject.ingredients.map(i => i.item))
+    ].map(reference =>
+        parseInt(
+            getFormIdStringFromLongName(reference).substring(0, 2),
+            16
+        )
+    );
+    loadOrders = Array.from(new Set([0, ...loadOrders])).sort();
+
+    return loadOrders.map(
+        loadOrder => xelib.FileByLoadOrder(loadOrder)
+    );
+}
+
 //= require ./src/*.js
 
 ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignatureService, editModalFactory) {
     let addRecipeRequiredMasters = function(fileHandle, recipeObject) {
-        xelib.AddMaster(fileHandle, 'Skyrim.esm');
-        [
-            recipeObject.createdObject,
-            ...(recipeObject.ingredients.map(i => i.item))
-        ].forEach(reference => {
-            xelib.WithHandle(
-                xelib.FileByLoadOrder(
-                    parseInt(
-                        getFormIdStringFromLongName(reference).substring(0, 2),
-                        16
-                    )
-                ),
-                masterFileHandle => xelib.AddMaster(fileHandle, xelib.GetFileName(masterFileHandle))
-            );
-        });
+        xelib.WithHandles(
+            getRecipeMasters(recipeObject),
+            masterFileHandles => {
+                masterFileHandles.forEach(
+                    masterFileHandle => xelib.AddMaster(fileHandle, xelib.GetFileName(masterFileHandle))
+                );
+            }
+        );
     }
 
     let writeRecipeToRecord = function(scope, recipeHandle, recipeObject) {

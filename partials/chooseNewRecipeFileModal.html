@@ -14,7 +14,7 @@
             </section>
 
             <div class="primary-actions">
-                <button class="action-btn positive" ng-click="save()">OK</button>
+                <button class="action-btn positive" ng-click="save()" ng-disabled="!destinationFileName">OK</button>
                 <button class="action-btn" ng-click="cancel()">Cancel</button>
             </div>
         </form>
