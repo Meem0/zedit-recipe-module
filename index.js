@@ -38,9 +38,25 @@ ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignature
         xelib.WithHandles(
             getRecipeMasters(recipeObject),
             masterFileHandles => {
-                masterFileHandles.forEach(
-                    masterFileHandle => xelib.AddMaster(fileHandle, xelib.GetFileName(masterFileHandle))
-                );
+                // make sure we don't re-add existing masters, otherwise the GUI would turn bold white for no reason
+                xelib.WithHandles(
+                    xelib.GetMasters(fileHandle),
+                    existingMasterFileHandles => {
+                        let existingMasterFileNames = existingMasterFileHandles.map(h => xelib.GetFileName(h));
+                        let fileName = xelib.GetFileName(fileHandle);
+                        masterFileHandles.forEach(
+                            masterFileHandle => {
+                                let masterFileName = xelib.GetFileName(masterFileHandle);
+                                if (
+                                    !existingMasterFileNames.includes(masterFileName) &&
+                                    masterFileName !== fileName
+                                ) {
+                                    xelib.AddMaster(fileHandle, xelib.GetFileName(masterFileHandle));
+                                }
+                            }
+                        );
+                    }
+                )
             }
         );
     }
