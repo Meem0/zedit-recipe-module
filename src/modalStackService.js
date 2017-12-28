@@ -3,6 +3,17 @@ ngapp.service('modalStackService', function() {
         constructor(scope) {
             this.scope = scope;
             this.stack = [];
+            // if a modal was opened and not registered with the modalStack, we want to reopen the top of the stack
+            // when it closes
+            this.unwatch = scope.$watch(
+                scope => scope.$root.modalActive,
+                (newVal, oldVal, scope) => {
+                    //console.log(`modalActive ${oldVal} -> ${newVal}`);
+                    if (oldVal === true && newVal === false) {
+                        this.openTopModal();
+                    }
+                }
+            );
         }
 
         push(modalName, args) {
@@ -21,13 +32,13 @@ ngapp.service('modalStackService', function() {
                 this.openTopModal();
             }
             else {
-                this.closeModal();
+                this.cleanup();
             }
         }
 
         clear() {
             this.stack = [];
-            this.closeModal();
+            this.cleanup();
         }
 
         // private
@@ -38,6 +49,11 @@ ngapp.service('modalStackService', function() {
                 args: modalContext.args,
                 modalStack: this
             });
+        }
+
+        cleanup() {
+            this.unwatch();
+            this.closeModal();
         }
 
         closeModal() {

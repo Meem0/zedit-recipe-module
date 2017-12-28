@@ -90,7 +90,10 @@ ngapp.run(function(
             editModalFactory.addFile(scope, addedFilename => {
                 xelib.WithHandle(
                     xelib.AddFile(addedFilename),
-                    fileHandle => createRecipeRecord(scope, fileHandle, recipeObject)
+                    fileHandle => {
+                        modalStack.clear();
+                        createRecipeRecord(scope, fileHandle, recipeObject);
+                    }
                 );
             });
         }
