@@ -1,13 +1,14 @@
-// modalOptions interface:
+// modalOptions.args interface:
 //   recipeObject: the recipeObject to display
-//   action(recipeObject): resolved when changes are saved, if there were changes
+//   callback(recipeObject): called when changes are saved, if there were changes. passes the modified recipeObject
 ngapp.controller('editRecipeModalController', function(
     $scope,
     recipePerkService,
     itemSignatureService,
     craftingStationService
 ) {
-    let recipeObject = $scope.modalOptions.recipeObject;
+    let recipeObject = $scope.modalOptions.args.recipeObject;
+    let callback = $scope.modalOptions.args.callback;
 
     let getSignatureFromLongName = function(longName) {
         let formId = getFormIdFromLongName(longName);
@@ -46,10 +47,6 @@ ngapp.controller('editRecipeModalController', function(
         $scope.isForge = $scope.craftingStation === 'Forge';
     }
 
-    $scope.closeModal = function() {
-        $scope.$emit('closeModal');
-    };
-
     $scope.saveAndClose = function() {
         let recipeObjectNew = {
             editorId: $scope.editorId,
@@ -74,18 +71,8 @@ ngapp.controller('editRecipeModalController', function(
             }
         }
 
-        if (!recipeObjectsEqual(recipeObject, recipeObjectNew)) {
-            this.modalOptions.action.resolve(recipeObjectNew);
-            $scope.closeModal();
-        }
-        else {
-            $scope.cancel();
-        }
-    }
-
-    $scope.cancel = function() {
-        this.modalOptions.action.reject();
-        $scope.closeModal();
+        $scope.modalOptions.args.recipeObject = recipeObjectNew;
+        callback(recipeObjectNew);
     }
 
     // editorId
