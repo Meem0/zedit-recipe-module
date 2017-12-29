@@ -37,7 +37,6 @@ ngapp.run(function(
     contextMenuFactory,
     recipeSerializeService,
     itemSignatureService,
-    editModalFactory,
     modalStackService
 ) {
     let addRecipeRequiredMasters = function(fileHandle, recipeObject) {
@@ -76,44 +75,20 @@ ngapp.run(function(
         scope.$root.$broadcast('reloadGUI');
     }
 
-    let createRecipeRecord = function(scope, fileHandle, recipeObject) {
-        xelib.WithHandle(
-            xelib.AddElement(fileHandle, 'COBJ\\COBJ'),
-            recipeHandle => {
-                writeRecipeToRecord(scope, recipeHandle, recipeObject);
-            }
-        );
-    }
-
-    let addNewRecipe = function(scope, modalStack, filename, recipeObject) {
-        if (filename == '< new file >') {
-            editModalFactory.addFile(scope, addedFilename => {
-                xelib.WithHandle(
-                    xelib.AddFile(addedFilename),
-                    fileHandle => {
-                        modalStack.clear();
-                        createRecipeRecord(scope, fileHandle, recipeObject);
-                    }
-                );
-            });
-        }
-        else {
-            modalStack.clear();
-            xelib.WithHandle(
-                xelib.FileByName(filename),
-                fileHandle => createRecipeRecord(scope, fileHandle, recipeObject)
-            );
-        }
-    }
-
     let openChooseNewRecipeFileModal = function(scope, modalStack, recipeObject) {
         modalStack.push(
             'chooseNewRecipeFile',
             {
                 recipeObject: recipeObject,
-                callback: (filename => addNewRecipe(scope, modalStack, filename, recipeObject))
+                callback: (filename => {
+                    modalStack.clear();
+                    xelib.WithHandle(
+                        xelib.AddElement(0, `${filename}\\COBJ\\COBJ`),
+                        recipeHandle => writeRecipeToRecord(scope, recipeHandle, recipeObject)
+                    );
+                })
             }
-        )
+        );
     }
 
     let openEditRecipeModal = function(scope, recipeObject, recipeHandle) {

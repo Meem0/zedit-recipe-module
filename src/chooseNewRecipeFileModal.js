@@ -1,7 +1,7 @@
 // modalOptions.args interface:
 //   recipeObject: the recipeObject to be saved
 //   callback(filename): called when a file is selected. passes the selected filename
-ngapp.controller('chooseNewRecipeFileModalController', function($scope) {
+ngapp.controller('chooseNewRecipeFileModalController', function($scope, editModalFactory) {
     // helper functions
     let initPlugins = function() {
         let lastMasterLoadOrder = 0;
@@ -31,7 +31,16 @@ ngapp.controller('chooseNewRecipeFileModalController', function($scope) {
 
     // scope functions
     $scope.save = function() {
-        $scope.modalOptions.args.callback($scope.destinationFileName);
+        let callback = $scope.modalOptions.args.callback;
+        if ($scope.destinationFileName === '< new file >') {
+            editModalFactory.addFile($scope, addedFilename => {
+                xelib.Release(xelib.AddFile(addedFilename));
+                callback(addedFilename);
+            });
+        }
+        else {
+            callback($scope.destinationFileName);
+        }
     };
 
     $scope.label = $scope.modalOptions.args.recipeObject.editorId;
