@@ -31,12 +31,15 @@ getRecipeMasters = function(recipeObject) {
     );
 }
 
-ngapp.controller('chooseNewRecipeFileModalController', function($scope) {
+// modalOptions.args interface:
+//   recipeObject: the recipeObject to be saved
+//   callback(filename): called when a file is selected. passes the selected filename
+ngapp.controller('chooseNewRecipeFileModalController', function($scope, editModalFactory) {
     // helper functions
     let initPlugins = function() {
         let lastMasterLoadOrder = 0;
         xelib.WithHandles(
-            getRecipeMasters($scope.modalOptions.recipeObject),
+            getRecipeMasters($scope.modalOptions.args.recipeObject),
             masterFileHandles => {
                 lastMasterLoadOrder = xelib.GetFileLoadOrder(masterFileHandles[masterFileHandles.length - 1]);
             }
@@ -61,16 +64,19 @@ ngapp.controller('chooseNewRecipeFileModalController', function($scope) {
 
     // scope functions
     $scope.save = function() {
-        $scope.modalOptions.action.resolve($scope.destinationFileName);
-        $scope.$emit('closeModal');
+        let callback = $scope.modalOptions.args.callback;
+        if ($scope.destinationFileName === '< new file >') {
+            editModalFactory.addFile($scope, addedFilename => {
+                xelib.Release(xelib.AddFile(addedFilename));
+                callback(addedFilename);
+            });
+        }
+        else {
+            callback($scope.destinationFileName);
+        }
     };
 
-    $scope.cancel = function() {
-        $scope.modalOptions.action.reject();
-        $scope.$emit('closeModal');
-    };
-
-    $scope.label = $scope.modalOptions.recipeObject.editorId;
+    $scope.label = $scope.modalOptions.args.recipeObject.editorId;
     $scope.destinationFileName = '';
     initPlugins();
 });
@@ -119,16 +125,17 @@ ngapp.service('craftingStationService', function() {
     }
 });
 
-// modalOptions interface:
+// modalOptions.args interface:
 //   recipeObject: the recipeObject to display
-//   action(recipeObject): resolved when changes are saved, if there were changes
+//   callback(recipeObject): called when changes are saved, if there were changes. passes the modified recipeObject
 ngapp.controller('editRecipeModalController', function(
     $scope,
     recipePerkService,
     itemSignatureService,
     craftingStationService
 ) {
-    let recipeObject = $scope.modalOptions.recipeObject;
+    let recipeObject = $scope.modalOptions.args.recipeObject;
+    let callback = $scope.modalOptions.args.callback;
 
     let getSignatureFromLongName = function(longName) {
         let formId = getFormIdFromLongName(longName);
@@ -167,10 +174,6 @@ ngapp.controller('editRecipeModalController', function(
         $scope.isForge = $scope.craftingStation === 'Forge';
     }
 
-    $scope.closeModal = function() {
-        $scope.$emit('closeModal');
-    };
-
     $scope.saveAndClose = function() {
         let recipeObjectNew = {
             editorId: $scope.editorId,
@@ -195,18 +198,8 @@ ngapp.controller('editRecipeModalController', function(
             }
         }
 
-        if (!recipeObjectsEqual(recipeObject, recipeObjectNew)) {
-            this.modalOptions.action.resolve(recipeObjectNew);
-            $scope.closeModal();
-        }
-        else {
-            $scope.cancel();
-        }
-    }
-
-    $scope.cancel = function() {
-        this.modalOptions.action.reject();
-        $scope.closeModal();
+        $scope.modalOptions.args.recipeObject = recipeObjectNew;
+        callback(recipeObjectNew);
     }
 
     // editorId
@@ -281,6 +274,74 @@ ngapp.service('itemSignatureService', function() {
     // returns an array of signatures that correspond to inventory items
     this.getItemSignatures = function() {
         return itemSignatures;
+    }
+});
+
+ngapp.service('modalStackService', function() {
+    class ModalStack {
+        constructor(scope) {
+            this.scope = scope;
+            this.stack = [];
+            // if a modal was opened and not registered with the modalStack, we want to reopen the top of the stack
+            // when it closes
+            this.unwatch = scope.$watch(
+                scope => scope.$root.modalActive,
+                (newVal, oldVal, scope) => {
+                    //console.log(`modalActive ${oldVal} -> ${newVal}`);
+                    if (oldVal === true && newVal === false) {
+                        this.openTopModal();
+                    }
+                }
+            );
+        }
+
+        push(modalName, args) {
+            this.stack.push({
+                modalName: modalName,
+                args: args
+            });
+
+            this.openTopModal();
+        }
+
+        pop() {
+            this.stack.pop();
+
+            if (this.stack.length > 0) {
+                this.openTopModal();
+            }
+            else {
+                this.cleanup();
+            }
+        }
+
+        clear() {
+            this.stack = [];
+            this.cleanup();
+        }
+
+        // private
+        openTopModal() {
+            let modalContext = this.stack[this.stack.length - 1];
+            this.scope.$emit('openModal', modalContext.modalName, {
+                basePath: `${modulePath}/partials`,
+                args: modalContext.args,
+                modalStack: this
+            });
+        }
+
+        cleanup() {
+            this.unwatch();
+            this.closeModal();
+        }
+
+        closeModal() {
+            this.scope.$emit('closeModal');
+        }
+    }
+    
+    this.new = function(scope) {
+        return new ModalStack(scope);
     }
 });
 
@@ -671,14 +732,35 @@ ngapp.service('recipeSerializeService', function(recipeConditionService) {
 });
 
 
-ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignatureService, editModalFactory) {
+ngapp.run(function(
+    contextMenuFactory,
+    recipeSerializeService,
+    itemSignatureService,
+    modalStackService
+) {
     let addRecipeRequiredMasters = function(fileHandle, recipeObject) {
         xelib.WithHandles(
             getRecipeMasters(recipeObject),
             masterFileHandles => {
-                masterFileHandles.forEach(
-                    masterFileHandle => xelib.AddMaster(fileHandle, xelib.GetFileName(masterFileHandle))
-                );
+                // make sure we don't re-add existing masters, otherwise the GUI would turn bold white for no reason
+                xelib.WithHandles(
+                    xelib.GetMasters(fileHandle),
+                    existingMasterFileHandles => {
+                        let existingMasterFileNames = existingMasterFileHandles.map(h => xelib.GetFileName(h));
+                        let fileName = xelib.GetFileName(fileHandle);
+                        masterFileHandles.forEach(
+                            masterFileHandle => {
+                                let masterFileName = xelib.GetFileName(masterFileHandle);
+                                if (
+                                    !existingMasterFileNames.includes(masterFileName) &&
+                                    masterFileName !== fileName
+                                ) {
+                                    xelib.AddMaster(fileHandle, xelib.GetFileName(masterFileHandle));
+                                }
+                            }
+                        );
+                    }
+                )
             }
         );
     }
@@ -692,30 +774,37 @@ ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignature
         scope.$root.$broadcast('reloadGUI');
     }
 
-    let createRecipeRecord = function(scope, fileHandle, recipeObject) {
-        xelib.WithHandle(
-            xelib.AddElement(fileHandle, 'COBJ\\COBJ'),
-            recipeHandle => {
-                writeRecipeToRecord(scope, recipeHandle, recipeObject);
+    let openChooseNewRecipeFileModal = function(scope, modalStack, recipeObject) {
+        modalStack.push(
+            'chooseNewRecipeFile',
+            {
+                recipeObject: recipeObject,
+                callback: (filename => {
+                    modalStack.clear();
+                    xelib.WithHandle(
+                        xelib.AddElement(0, `${filename}\\COBJ\\COBJ`),
+                        recipeHandle => writeRecipeToRecord(scope, recipeHandle, recipeObject)
+                    );
+                })
             }
         );
     }
 
-    let addNewRecipe = function(scope, filename, recipeObject) {
-        if (filename == '< new file >') {
-            editModalFactory.addFile(scope, addedFilename => {
-                xelib.WithHandle(
-                    xelib.AddFile(addedFilename),
-                    fileHandle => createRecipeRecord(scope, fileHandle, recipeObject)
-                );
-            });
-        }
-        else {
-            xelib.WithHandle(
-                xelib.FileByName(filename),
-                fileHandle => createRecipeRecord(scope, fileHandle, recipeObject)
-            );
-        }
+    let openEditRecipeModal = function(scope, recipeObject, recipeHandle) {
+        let modalStack = modalStackService.new(scope);
+        modalStack.push(
+            'editRecipe',
+            {
+                recipeObject: recipeObject,
+                callback: (recipeHandle === 0 ?
+                    (recipeObject => openChooseNewRecipeFileModal(scope, modalStack, recipeObject)) :
+                    (recipeObject => {
+                        modalStack.clear();
+                        writeRecipeToRecord(scope, recipeHandle, recipeObject);
+                    })
+                )
+            }
+        );
     }
 
     let editRecipe = function(scope, handle) {
@@ -730,33 +819,7 @@ ngapp.run(function($q, contextMenuFactory, recipeSerializeService, itemSignature
             recipeObject.createdObject = xelib.LongName(handle);
         }
 
-        let recipeObjectBefore = recipeObject;
-        let action = $q.defer();
-
-        scope.$emit('openModal', 'editRecipe', {
-            basePath: `${modulePath}/partials`,
-            recipeObject: recipeObject,
-            action: action
-        });
-
-        action.promise.then(recipeObject => {
-            if (recipeHandle === 0) {
-                let chooseFileAction = $q.defer();
-
-                scope.$emit('openModal', 'chooseNewRecipeFile', {
-                    basePath: `${modulePath}/partials`,
-                    recipeObject: recipeObject,
-                    action: chooseFileAction
-                });
-
-                chooseFileAction.promise.then(filename => {
-                    addNewRecipe(scope, filename, recipeObject)
-                });
-            }
-            else {
-                writeRecipeToRecord(scope, recipeHandle, recipeObject);
-            }
-        });
+        openEditRecipeModal(scope, recipeObject, recipeHandle);
     }
 
     let menuItems = contextMenuFactory.treeViewItems;

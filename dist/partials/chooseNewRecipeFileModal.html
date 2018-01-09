@@ -1,7 +1,7 @@
-<div class="modal-container" unfocus-modal="cancel()">
+<div class="modal-container" unfocus-modal="modalOptions.modalStack.clear()">
     <div class="modal">
         <form>
-            <div class="close-modal" ng-click="cancel()"></div>
+            <div class="close-modal" ng-click="modalOptions.modalStack.pop()"></div>
 
             <h2>Save {{label}} into</h2>
 
@@ -15,7 +15,7 @@
 
             <div class="primary-actions">
                 <button class="action-btn positive" ng-click="save()" ng-disabled="!destinationFileName">OK</button>
-                <button class="action-btn" ng-click="cancel()">Cancel</button>
+                <button class="action-btn" ng-click="modalOptions.modalStack.pop()">Cancel</button>
             </div>
         </form>
     </div>
