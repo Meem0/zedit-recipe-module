@@ -2,6 +2,19 @@
     .edit-recipe-modal .modal {
         max-width: 700px;
     }
+
+    .ingredient {
+      border: 1px solid #333;
+      padding: 10px;
+      margin: 10px 0;
+      position: relative;
+    }
+
+    .ingredient .remove-item {
+      position: absolute;
+      top: 2px;
+      right: 4px;
+    }
 </style>
 
 <div class="modal-container" unfocus-modal="modalOptions.modalStack.clear()">
@@ -16,14 +29,14 @@
             <h2>Edit Recipe</h2>
 
             <section>
-                <label class="flex">
+                <label>
                     <span class="input-label">Editor ID</span>
                     <input type="text" ng-model="editorId"/>
                 </label>
             </section>
 
             <section>
-                <label class="flex">
+                <label>
                     <span class="input-label">Crafting Station</span>
                     <select
                         ng-model="craftingStation"
@@ -34,7 +47,7 @@
             </section>
 
             <section>
-                <label class="flex">
+                <label>
                     <span class="input-label">Created Object</span>
                     <reference-select
                         model="createdObject"
@@ -42,14 +55,14 @@
                         signatures="itemSignatures">
                     </reference-select>
                 </label>
-                <label class="flex">
+                <label>
                     <span class="input-label">Created Object Count</span>
                     <number-input type="positiveInteger" model="createdObjectCount"></number-input>
                 </label>
             </section>
 
             <section>
-                <label class="flex" ng-show="isForge">
+                <label ng-show="isForge">
                     <span class="input-label">Required Perk</span>
                     <select
                         ng-model="conditionPerk"
@@ -64,9 +77,9 @@
                 </span>
             </h3>
             <section>
-                <div ng-repeat="ingredient in ingredients">
+                <div class="ingredient" ng-repeat="ingredient in ingredients">
                     <div class="remove-item" ng-click="removeIngredient(ingredient)"></div>
-                    <label class="flex">
+                    <label>
                         <span class="input-label">Item</span>
                         <reference-select
                             model="ingredient.item"
@@ -74,7 +87,7 @@
                             signatures="itemSignatures">
                         </reference-select>
                     </label>
-                    <label class="flex">
+                    <label>
                         <span class="input-label">Count</span>
                         <number-input type="positiveInteger" model="ingredient.count"></number-input>
                     </label>
